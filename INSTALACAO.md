@@ -105,3 +105,18 @@ Os CSVs usam vírgula como separador, ponto decimal e datas em AAAA-MM-DD. Em le
 ## Usando a integração com o GitHub
 
 Mantenha os arquivos na raiz do repositório. Em subpastas o Apps Script grava o caminho no nome (por exemplo `apps-script/Painel.html`) e o painel não é encontrado ("No HTML file named Painel was found").
+
+## Dashboard web app
+
+O dashboard (`Dashboard.html` + `Dashboard.gs`) mostra todas as análises com gráficos e troca de período sem consultar o BigQuery a cada vez.
+
+1. Configure o projeto GCP em Análise CRM WL > Abrir painel (mesma configuração da planilha).
+2. Rode **Análise CRM WL > Atualizar dados do dashboard** uma vez. Leva de 1 a 3 minutos e guarda o histórico em abas ocultas (`_dados_pedidos`, `_dados_leads`).
+3. Rode **Agendar atualização diária (6h)** para manter os dados em dia.
+4. No editor do Apps Script: Implantar > Nova implantação > App da Web. Executar como: você. Acesso: apenas você ou a organização (o dashboard mostra dados de clientes agregados, mas não deixe público).
+5. Abra a URL do app. Escolha as datas, use os atalhos (7 dias, 30 dias, mês atual, tudo) e clique em Aplicar. Os botões de CSV exportam as tabelas diárias do período.
+
+Observações:
+- O período do dashboard só vai até ontem; janelas de conversão (7 e 14 dias) só entram quando completas, como na planilha.
+- Para recarregar o histórico na hora, use o botão Atualizar dados no topo do dashboard.
+- Depois de mudar o código, crie uma nova versão da implantação para a URL refletir a mudança.

@@ -155,3 +155,20 @@ function wilson_(k, n, z) {
   const c = p + z * z / (2 * n), h = z * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
   return [Math.max(0, (c - h) / d), Math.min(1, (c + h) / d)];
 }
+
+/**
+ * Leads para um intervalo, a partir das linhas guardadas (agrupamentos 'dia' e 'land', ambos aditivos por dia).
+ * A fonte 'src' é reconstruída somando as linhas 'dia' a partir de utmFrom.
+ */
+function leadsForRange_(rows, start, end, utmFrom) {
+  const sel = [];
+  rows.forEach(function (r) {
+    if (r.dia < start || r.dia > end) return;
+    if (r.sec === 'land') sel.push(r);
+    else if (r.sec === 'dia') {
+      sel.push(r);
+      sel.push(Object.assign({}, r, { sec: 'src', in_s: r.dia >= utmFrom ? 'true' : 'false' }));
+    }
+  });
+  return computeLeads_(sel, {});
+}

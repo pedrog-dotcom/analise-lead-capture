@@ -23,6 +23,8 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('Análise CRM WL')
     .addItem('Abrir painel', 'showPanel')
     .addItem('Testar conexão com o BigQuery', 'testConnectionMenu')
+    .addItem('Atualizar dados do dashboard', 'refreshData')
+    .addItem('Agendar atualização diária (6h)', 'installDailyTrigger')
     .addToUi();
 }
 
