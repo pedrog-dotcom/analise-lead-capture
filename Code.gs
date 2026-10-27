@@ -70,6 +70,22 @@ function saveConfig(cfg) {
   return { ok: true };
 }
 
+function normalizeParams_(p, cfg) {
+  const today = todayBr_();
+  const P = {
+    start: assertDate_(p.start, 'início'), end: assertDate_(p.end, 'fim'), utmFrom: assertDate_(p.utmFrom || DEFAULT_PARAMS_.utmFrom, 'UTM confiável desde'),
+    launch: assertDate_(p.launch || DEFAULT_PARAMS_.launch, 'lançamento do retargeting'), margin: Number(p.margin),
+    dataStart: cfg.dataStart, minCohort: cfg.minCohort
+  };
+  if (P.start > P.end) throw new Error('A data de início não pode ser depois da data final.');
+  if (P.end > today) throw new Error('A data final não pode ser futura.');
+  if (isNaN(P.margin) || P.margin < 0 || P.margin > 100) throw new Error('Margem deve estar entre 0 e 100.');
+  P.margin = P.margin / 100;
+  P.utmFromEff = P.utmFrom > P.start ? P.utmFrom : P.start;
+  P.generatedAt = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
+  return P;
+}
+
 /** ---------- Nekt (Data API) ---------- */
 const NUM_COLS_ = /^(is_crm|gross|net|disc|gap_rec_h|conv_gap_h|pay_gap_h|crm_sess|rnk|has_sess|ed|ea|ec|leads|s_(el|cv|cr|net|disc|b|c)\w*|l_\w+)$/;
 
