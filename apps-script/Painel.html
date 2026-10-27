@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #202124; margin: 14px; }
+    h1 { font-size: 16px; margin: 0 0 4px; }
+    .sub { color: #5f6368; margin-bottom: 12px; }
+    fieldset { border: 1px solid #dadce0; border-radius: 6px; margin: 0 0 12px; padding: 10px 12px; }
+    legend { font-weight: bold; padding: 0 6px; }
+    label { display: block; margin: 8px 0 3px; font-weight: bold; }
+    input[type=date], input[type=text], input[type=number] { width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; font-size: 13px; }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    .hint { color: #5f6368; font-size: 11px; margin-top: 2px; }
+    button { padding: 8px 12px; border: 0; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .primary { background: #1a73e8; color: #fff; }
+    .secondary { background: #e8f0fe; color: #1a73e8; }
+    .ghost { background: #f1f3f4; color: #202124; }
+    button:disabled { opacity: .5; cursor: default; }
+    .presets button { margin: 4px 4px 0 0; padding: 4px 8px; font-size: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    #status { margin-top: 10px; padding: 8px 10px; border-radius: 6px; background: #f1f3f4; white-space: pre-wrap; min-height: 18px; }
+    #status.err { background: #fce8e6; color: #a50e0e; }
+    #status.ok { background: #e6f4ea; color: #137333; }
+    .warn { color: #b06000; margin-top: 6px; }
+    details summary { cursor: pointer; font-weight: bold; margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Captura de email e venda via CRM (WL BR)</h1>
+  <div class="sub">Escolha o período das compras, rode a análise e exporte as tabelas diárias.</div>
+
+  <fieldset>
+    <legend>Período</legend>
+    <div class="row">
+      <div><label for="start">Dia inicial</label><input type="date" id="start"></div>
+      <div><label for="end">Dia final</label><input type="date" id="end"></div>
+    </div>
+    <div class="presets">
+      <button class="ghost" onclick="preset('7')">Últimos 7 dias</button>
+      <button class="ghost" onclick="preset('30')">Últimos 30 dias</button>
+      <button class="ghost" onclick="preset('mes')">Mês atual</button>
+      <button class="ghost" onclick="preset('tudo')">Desde 01/09/2026</button>
+    </div>
+    <div class="hint">O período vale para a data do checkout das aquisições e para a data da primeira captura dos leads (fuso Brasil). O dia de hoje não entra (dia parcial).</div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Parâmetros da análise</legend>
+    <div class="row">
+      <div><label for="utmFrom">UTM confiável desde</label><input type="date" id="utmFrom"><div class="hint">Análises por UTM source usam coortes a partir desta data.</div></div>
+      <div><label for="launch">Lançamento do retargeting</label><input type="date" id="launch"><div class="hint">Usado no antes e depois.</div></div>
+    </div>
+    <label for="margin">Margem de contribuição (%)</label>
+    <input type="number" id="margin" min="0" max="100" step="1">
+    <div class="hint">Premissa para o ponto de equilíbrio do cupom. Pode ser alterada depois, direto na aba Incrementalidade.</div>
+  </fieldset>
+
+  <details id="cfgBox">
+    <summary>Configuração do BigQuery</summary>
+    <fieldset>
+      <label for="project">Projeto GCP com os dados da Nekt</label><input type="text" id="project" placeholder="ex.: meu-projeto-gcp">
+      <div class="row">
+        <div><label for="dataset">Dataset</label><input type="text" id="dataset"></div>
+        <div><label for="location">Local (opcional)</label><input type="text" id="location" placeholder="ex.: US"></div>
+      </div>
+      <label for="billingProject">Projeto de cobrança (opcional)</label><input type="text" id="billingProject" placeholder="vazio = mesmo projeto">
+      <div class="actions">
+        <button class="secondary" id="btnSave" onclick="saveCfg()">Salvar configuração</button>
+        <button class="ghost" id="btnTest" onclick="testConn()">Testar conexão</button>
+      </div>
+    </fieldset>
+  </details>
+
+  <div class="actions">
+    <button class="primary" id="btnRun" onclick="run()">Rodar análise</button>
+    <button class="secondary" id="btnCsvO" onclick="csv('aquisicoes')">Baixar CSV diário de aquisições</button>
+    <button class="secondary" id="btnCsvL" onclick="csv('leads')">Baixar CSV diário de leads</button>
+  </div>
+  <div id="status">Pronto.</div>
+  <div class="hint" id="last"></div>
+
+  <script>
+    var state = null;
+    function $(id) { return document.getElementById(id); }
+    function setStatus(msg, cls) { var s = $('status'); s.textContent = msg; s.className = cls || ''; }
+    function busy(b) { ['btnRun', 'btnCsvO', 'btnCsvL', 'btnSave', 'btnTest'].forEach(function (i) { $(i).disabled = b; }); }
+    function iso(d) { return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+    function addDays(isoStr, n) { var p = isoStr.split('-'); var d = new Date(+p[0], +p[1] - 1, +p[2]); d.setDate(d.getDate() + n); return iso(d); }
+
+    google.script.run.withSuccessHandler(function (s) {
+      state = s;
+      $('start').value = s.params.start; $('end').value = s.params.end; $('utmFrom').value = s.params.utmFrom; $('launch').value = s.params.launch; $('margin').value = s.params.margin;
+      $('project').value = s.cfg.project; $('dataset').value = s.cfg.dataset; $('location').value = s.cfg.location; $('billingProject').value = s.cfg.billingProject;
+      if (!s.cfg.project) { $('cfgBox').open = true; setStatus('Informe o projeto GCP na configuração do BigQuery para começar.'); }
+      $('last').textContent = s.lastRun ? 'Última execução: ' + s.lastRun : '';
+    }).withFailureHandler(function (e) { setStatus(e.message, 'err'); }).getPanelState();
+
+    function preset(k) {
+      var yest = addDays(state.today, -1);
+      $('end').value = yest;
+      if (k === '7') $('start').value = addDays(yest, -6);
+      if (k === '30') $('start').value = addDays(yest, -29);
+      if (k === 'mes') { var first = state.today.slice(0, 8) + '01'; $('start').value = first > yest ? yest.slice(0, 8) + '01' : first; }
+      if (k === 'tudo') $('start').value = '2026-09-01';
+    }
+    function params() { return { start: $('start').value, end: $('end').value, utmFrom: $('utmFrom').value, launch: $('launch').value, margin: $('margin').value }; }
+    function cfgVals() { return { project: $('project').value, dataset: $('dataset').value, location: $('location').value, billingProject: $('billingProject').value }; }
+
+    function saveCfg() {
+      busy(true);
+      google.script.run.withSuccessHandler(function () { busy(false); setStatus('Configuração salva.', 'ok'); })
+        .withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).saveConfig(cfgVals());
+    }
+    function testConn() {
+      busy(true); setStatus('Testando conexão...');
+      google.script.run.withSuccessHandler(function () {
+        google.script.run.withSuccessHandler(function (r) { busy(false); setStatus(r.message, 'ok'); })
+          .withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).testConnection();
+      }).withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).saveConfig(cfgVals());
+    }
+    function run() {
+      busy(true); setStatus('Consultando o BigQuery e montando as abas. Leva de 1 a 3 minutos, não feche esta janela.');
+      google.script.run.withSuccessHandler(function () {
+        google.script.run.withSuccessHandler(function (r) {
+          busy(false);
+          setStatus(r.message + (r.warnings && r.warnings.length ? '\n\nAvisos:\n- ' + r.warnings.join('\n- ') : ''), 'ok');
+        }).withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).runAnalysis(params());
+      }).withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).saveConfig(cfgVals());
+    }
+    function csv(kind) {
+      busy(true); setStatus('Gerando CSV...');
+      google.script.run.withSuccessHandler(function (r) {
+        busy(false);
+        var blob = new Blob(['﻿' + r.csv], { type: 'text/csv;charset=utf-8;' });
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = r.filename;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setStatus('CSV baixado: ' + r.filename, 'ok');
+      }).withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).getDailyCsv(kind);
+    }
+  </script>
+</body>
+</html>
