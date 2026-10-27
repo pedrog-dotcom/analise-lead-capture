@@ -4,7 +4,7 @@ Planilha Google com painel para escolher o dia inicial e o dia final, gerar toda
 
 ## O que o script faz
 
-1. Consulta o BigQuery (tabelas da Nekt) com duas queries parametrizadas pelo período:
+1. Consulta a Nekt (Data API) com duas queries parametrizadas pelo período:
    - **Pedidos**: 1 linha por aquisição confirmada da Voy (WL, Brasil) com checkout no período, já classificada pela etapa mais profunda de captura antes da sessão de compra (A pop-up apenas, B questionário, C checkout, D sem captura prévia visível, X sem email).
    - **Leads**: coortes por data da primeira captura, com marco de 24h, exposição a emails, conversão em 7 e 14 dias e agrupamentos por UTM source e por dia.
 2. Calcula as agregações em JavaScript e escreve as abas (contagens em azul, razões e totais em fórmulas).
@@ -14,15 +14,12 @@ Planilha Google com painel para escolher o dia inicial e o dia final, gerar toda
 
 1. Crie uma planilha Google nova (ou use uma existente) e abra **Extensões > Apps Script**.
 2. Crie os arquivos com os nomes abaixo e cole o conteúdo de cada um:
-   - `Code.gs`, `Sql.gs`, `Aggregations.gs`, `Sheets.gs` (tipo Script)
-   - `Painel.html` (tipo HTML, nome exatamente `Painel`)
+   - `Code.gs`, `Sql.gs`, `Aggregations.gs`, `Sheets.gs`, `DashboardApi.gs` (tipo Script)
+   - `Painel.html` e `Dashboard.html` (tipo HTML, nomes exatos)
    - `appsscript.json`: em **Configurações do projeto**, marque "Mostrar o arquivo de manifesto appsscript.json no editor" e cole o conteúdo.
-3. Em **Serviços (+)**, adicione **BigQuery API** (v2) com o identificador `BigQuery`. O manifesto já declara o serviço; se o editor reclamar, adicione manualmente.
 4. Salve, volte à planilha e recarregue a página. Aparece o menu **Análise CRM WL**.
-5. Abra **Análise CRM WL > Abrir painel**, expanda **Configuração do BigQuery** e preencha:
-   - **Projeto GCP** com os dados da Nekt (o projeto que contém o dataset `manual_default`);
-   - **Dataset** (padrão `manual_default`), local (opcional) e projeto de cobrança (opcional).
-6. Clique em **Testar conexão**. Na primeira vez o Google pede autorização para BigQuery e Planilhas. A conta precisa de permissão de leitura nas tabelas e de `bigquery.jobs.create` no projeto de cobrança.
+5. Abra **Análise CRM WL > Abrir painel**, expanda **Configuração da Nekt**, cole a chave de API (app.nekt.ai/settings/api-keys) e confirme o dataset `manual_default`. A chave fica nas propriedades do script, não na planilha.
+6. Clique em **Testar conexão**. Na primeira vez o Google pede autorização para Planilhas e para acesso externo (chamadas à API da Nekt).
 
 Tabelas lidas (dataset configurado): `webhook_v2_orders_lake`, `webhook_v2_order_sessions_lake`, `webhook_v2_customers_lake`, `webhook_v2_cio_crm_touches_lake`, `crm_atribuicao_cupons`, `wl_customer_io_activities`, `wl_customer_io_customers`.
 
@@ -80,7 +77,7 @@ Os CSVs usam vírgula como separador, ponto decimal e datas em AAAA-MM-DD. Em le
 
 - Janelas de desfecho dos leads no marco de 24h exigem 8 e 15 dias completos desde a primeira captura (antes eram 7 e 14); os números mudam na terceira casa decimal.
 - O período é livre; o antes e depois do retargeting se ajusta ao intervalo escolhido (pré = 14 dias antes do lançamento, pós = do lançamento até o último dia com 7 dias completos de desfecho).
-- As contagens são valores vindos do BigQuery; razões, totais e intervalos são fórmulas. Na planilha anterior as contagens eram fórmulas sobre a base de pedidos.
+- As contagens são valores vindos da Nekt; razões, totais e intervalos são fórmulas. Na planilha anterior as contagens eram fórmulas sobre a base de pedidos.
 
 ## Limitações
 
@@ -92,13 +89,15 @@ Os CSVs usam vírgula como separador, ponto decimal e datas em AAAA-MM-DD. Em le
 
 ## Custos e limites
 
-- Cada execução faz 2 queries que varrem ~11 GB cada (a tabela de atividades é a mais pesada). No preço sob demanda do BigQuery, isso fica na casa de centavos de dólar por execução.
+- Cada execução faz 2 queries na Nekt (a tabela de atividades é a mais pesada). Cada query conta como uso da Data API, conforme seu plano.
 - O Apps Script limita a execução a 6 minutos. Se um período muito longo estourar o tempo, rode em blocos menores.
 
 ## Solução de problemas
 
-- "Informe o projeto GCP": preencha a configuração no painel.
-- "Access Denied" ou "Not found: Dataset": confira projeto, dataset e permissões; se o dataset estiver fora do local padrão, preencha o campo Local.
+- "Informe a chave da API da Nekt": preencha a configuração no painel.
+- "A Nekt recusou a chave": gere outra em Configurações > API Keys e salve de novo.
+- "Consulta na Nekt terminou como RUNNING": a Data API devolveu antes de terminar; rode de novo. Se persistir, fale com o suporte da Nekt.
+- "Not found: Dataset" ou tabela: confira o nome do dataset (layer) na Nekt.
 - Abas com zeros: confira se o período tem pedidos e se o início não é anterior a 30/08/2026.
 - Mudou a lista de cupons CRM: edite `CRM_PROMOS_` em `Sql.gs`.
 
@@ -108,9 +107,9 @@ Mantenha os arquivos na raiz do repositório. Em subpastas o Apps Script grava o
 
 ## Dashboard web app
 
-O dashboard (`Dashboard.html` + `DashboardApi.gs`) mostra todas as análises com gráficos e troca de período sem consultar o BigQuery a cada vez.
+O dashboard (`Dashboard.html` + `DashboardApi.gs`) mostra todas as análises com gráficos e troca de período sem consultar a Nekt a cada vez.
 
-1. Configure o projeto GCP em Análise CRM WL > Abrir painel (mesma configuração da planilha).
+1. Configure a chave da API da Nekt em Análise CRM WL > Abrir painel (mesma configuração da planilha).
 2. Rode **Análise CRM WL > Atualizar dados do dashboard** uma vez. Leva de 1 a 3 minutos e guarda o histórico em abas ocultas (`_dados_pedidos`, `_dados_leads`).
 3. Rode **Agendar atualização diária (6h)** para manter os dados em dia.
 4. No editor do Apps Script: Implantar > Nova implantação > App da Web. Executar como: você. Acesso: apenas você ou a organização (o dashboard mostra dados de clientes agregados, mas não deixe público).

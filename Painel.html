@@ -59,14 +59,11 @@
   </fieldset>
 
   <details id="cfgBox">
-    <summary>Configuração do BigQuery</summary>
+    <summary>Configuração da Nekt</summary>
     <fieldset>
-      <label for="project">Projeto GCP com os dados da Nekt</label><input type="text" id="project" placeholder="ex.: meu-projeto-gcp">
-      <div class="row">
-        <div><label for="dataset">Dataset</label><input type="text" id="dataset"></div>
-        <div><label for="location">Local (opcional)</label><input type="text" id="location" placeholder="ex.: US"></div>
-      </div>
-      <label for="billingProject">Projeto de cobrança (opcional)</label><input type="text" id="billingProject" placeholder="vazio = mesmo projeto">
+      <label for="apiKey">Chave da API da Nekt</label><input type="password" id="apiKey" autocomplete="off" placeholder="cole a chave (fica guardada no script)">
+      <div class="hint" id="keyHint">Gere em app.nekt.ai/settings/api-keys. Deixe em branco para manter a chave já salva.</div>
+      <label for="dataset">Dataset (layer) das tabelas</label><input type="text" id="dataset">
       <div class="actions">
         <button class="secondary" id="btnSave" onclick="saveCfg()">Salvar configuração</button>
         <button class="ghost" id="btnTest" onclick="testConn()">Testar conexão</button>
@@ -93,8 +90,8 @@
     google.script.run.withSuccessHandler(function (s) {
       state = s;
       $('start').value = s.params.start; $('end').value = s.params.end; $('utmFrom').value = s.params.utmFrom; $('launch').value = s.params.launch; $('margin').value = s.params.margin;
-      $('project').value = s.cfg.project; $('dataset').value = s.cfg.dataset; $('location').value = s.cfg.location; $('billingProject').value = s.cfg.billingProject;
-      if (!s.cfg.project) { $('cfgBox').open = true; setStatus('Informe o projeto GCP na configuração do BigQuery para começar.'); }
+      $('dataset').value = s.cfg.dataset;
+      if (!s.hasKey) { $('cfgBox').open = true; setStatus('Informe a chave da API da Nekt na configuração para começar.'); } else { $('keyHint').textContent = 'Chave salva. Deixe em branco para mantê-la, ou cole outra para trocar.'; }
       $('last').textContent = s.lastRun ? 'Última execução: ' + s.lastRun : '';
     }).withFailureHandler(function (e) { setStatus(e.message, 'err'); }).getPanelState();
 
@@ -107,7 +104,7 @@
       if (k === 'tudo') $('start').value = '2026-09-01';
     }
     function params() { return { start: $('start').value, end: $('end').value, utmFrom: $('utmFrom').value, launch: $('launch').value, margin: $('margin').value }; }
-    function cfgVals() { return { project: $('project').value, dataset: $('dataset').value, location: $('location').value, billingProject: $('billingProject').value }; }
+    function cfgVals() { return { apiKey: $('apiKey').value, dataset: $('dataset').value }; }
 
     function saveCfg() {
       busy(true);
@@ -122,7 +119,7 @@
       }).withFailureHandler(function (e) { busy(false); setStatus(e.message, 'err'); }).saveConfig(cfgVals());
     }
     function run() {
-      busy(true); setStatus('Consultando o BigQuery e montando as abas. Leva de 1 a 3 minutos, não feche esta janela.');
+      busy(true); setStatus('Consultando a Nekt e montando as abas. Leva de 1 a 3 minutos, não feche esta janela.');
       google.script.run.withSuccessHandler(function () {
         google.script.run.withSuccessHandler(function (r) {
           busy(false);

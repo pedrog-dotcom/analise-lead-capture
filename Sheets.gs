@@ -1,5 +1,5 @@
 /**
- * Escritores de abas. Convenções de cor: azul = dado vindo do BigQuery ou premissa; verde = fórmula que lê outra aba;
+ * Escritores de abas. Convenções de cor: azul = dado vindo da Nekt ou premissa; verde = fórmula que lê outra aba;
  * preto = fórmula local; vermelho = alerta; fundo amarelo = premissa editável.
  */
 
@@ -346,8 +346,8 @@ function writeMetodologia_(sh, P) {
     ['Limitação 4: sem COGS e sem recorrência na janela, a rentabilidade usa receita líquida do primeiro pedido; a margem de contribuição é uma premissa editável.', { color: COLOR_.red }],
     ['Sessão anterior à compra: o lake não traz as sessões da jornada, só a sessão do pedido. A captura mais recente da etapa antes dessa sessão faz o papel de captura na sessão anterior; a aba Tempo até conversão mostra a distância entre as duas.', {}],
     ['Marco de 24h (análise de leads): classe do lead = etapa mais profunda até 24h após a primeira captura; desfecho contado só depois do marco, para evitar viés de olhar o futuro. Lead que já comprou antes de capturar é excluído. Janelas dos desfechos só entram quando completas até 00:00 de hoje (fuso Brasil).', {}],
-    ['Contagens vêm do BigQuery (azul); razões, totais e intervalos de confiança são fórmulas. A aba Base pedidos traz 1 linha por aquisição para tabelas dinâmicas.', {}],
-    ['Convenções de cor: azul = dado trazido do BigQuery ou premissa; verde = fórmula que lê outra aba; preto = fórmula local; vermelho = alerta; fundo amarelo = premissa para editar.', {}]
+    ['Contagens vêm da Nekt (azul); razões, totais e intervalos de confiança são fórmulas. A aba Base pedidos traz 1 linha por aquisição para tabelas dinâmicas.', {}],
+    ['Convenções de cor: azul = dado trazido da Nekt ou premissa; verde = fórmula que lê outra aba; preto = fórmula local; vermelho = alerta; fundo amarelo = premissa para editar.', {}]
   ];
   L.forEach(function (x, i) { sb.put(i + 1, 1, x[0], Object.assign({ wrap: true }, x[1])); sb.heights[i + 1] = i === 0 ? 24 : 46; });
   sb.widths[1] = 900;

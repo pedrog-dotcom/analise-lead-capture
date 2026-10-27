@@ -8,11 +8,11 @@ const SHEET_NAMES_ = {
   rent: 'Rentabilidade e prob por UTM', extras: 'Extras', met: 'Metodologia', base: 'Base pedidos', dOrd: 'Diário aquisições', dLead: 'Diário leads'
 };
 
+const NEKT_URL_ = 'https://api.nekt.ai/api/v1/sql-query/';
+
 const DEFAULT_CFG_ = {
-  project: '',                 // projeto GCP que contém os datasets da Nekt (obrigatório)
-  billingProject: '',          // projeto que paga a consulta (vazio = mesmo projeto)
-  dataset: 'manual_default',   // dataset das tabelas da Nekt
-  location: '',                // ex.: US, southamerica-east1 (vazio = automático)
+  project: '',                 // vazio: as consultas rodam na Nekt e usam `dataset`.`tabela`
+  dataset: 'manual_default',   // dataset (layer) das tabelas na Nekt
   dataStart: '2026-08-30',     // início do histórico de eventos de captura no lake
   minCohort: '2026-09-02'      // primeira data de coorte de leads considerada confiável
 };
@@ -22,7 +22,7 @@ const DEFAULT_PARAMS_ = { start: '2026-09-01', end: '', utmFrom: '2026-09-29', l
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Análise CRM WL')
     .addItem('Abrir painel', 'showPanel')
-    .addItem('Testar conexão com o BigQuery', 'testConnectionMenu')
+    .addItem('Testar conexão com a Nekt', 'testConnectionMenu')
     .addItem('Atualizar dados do dashboard', 'refreshData')
     .addItem('Agendar atualização diária (6h)', 'installDailyTrigger')
     .addToUi();
@@ -43,7 +43,7 @@ function todayBr_() { return Utilities.formatDate(new Date(), 'America/Sao_Paulo
 /** ---------- Configuração e estado do painel ---------- */
 function getConfig_() {
   const raw = PropertiesService.getDocumentProperties().getProperty('cfg');
-  return Object.assign({}, DEFAULT_CFG_, raw ? JSON.parse(raw) : {});
+  return Object.assign({}, DEFAULT_CFG_, raw ? JSON.parse(raw) : {}, { project: '' });
 }
 
 function getPanelState() {
@@ -52,68 +52,64 @@ function getPanelState() {
   const p = Object.assign({}, DEFAULT_PARAMS_, last ? JSON.parse(last) : {});
   const yesterday = addDays_(todayBr_(), -1);
   if (!p.end || p.end > yesterday) p.end = yesterday;
-  return { cfg: getConfig_(), params: p, today: todayBr_(), lastRun: props.getProperty('lastRun') || '' };
+  const cfg = getConfig_();
+  return { cfg: { dataset: cfg.dataset }, hasKey: !!getNektKey_(), params: p, today: todayBr_(), lastRun: props.getProperty('lastRun') || '' };
 }
 
+function getNektKey_() { return PropertiesService.getScriptProperties().getProperty('NEKT_API_KEY') || ''; }
+
 function saveConfig(cfg) {
-  const clean = {};
-  ['project', 'billingProject', 'dataset', 'location'].forEach(function (k) { clean[k] = String(cfg[k] || '').trim(); });
-  if (clean.project && !/^[a-z][a-z0-9\-:.]{4,60}$/i.test(clean.project)) throw new Error('ID de projeto GCP inválido.');
-  if (!/^[A-Za-z0-9_]+$/.test(clean.dataset)) throw new Error('Nome de dataset inválido.');
-  const cur = getConfig_();
-  PropertiesService.getDocumentProperties().setProperty('cfg', JSON.stringify(Object.assign({}, cur, clean)));
+  const dataset = String(cfg.dataset || '').trim();
+  if (!/^[A-Za-z0-9_]+$/.test(dataset)) throw new Error('Nome de dataset inválido.');
+  const key = String(cfg.apiKey || '').trim();
+  if (key) {
+    if (/\s/.test(key) || key.length < 10) throw new Error('Chave da API da Nekt inválida.');
+    PropertiesService.getScriptProperties().setProperty('NEKT_API_KEY', key);
+  }
+  PropertiesService.getDocumentProperties().setProperty('cfg', JSON.stringify(Object.assign({}, getConfig_(), { dataset: dataset })));
   return { ok: true };
 }
 
-function normalizeParams_(p, cfg) {
-  const today = todayBr_();
-  const P = {
-    start: assertDate_(p.start, 'início'), end: assertDate_(p.end, 'fim'), utmFrom: assertDate_(p.utmFrom || DEFAULT_PARAMS_.utmFrom, 'UTM confiável desde'),
-    launch: assertDate_(p.launch || DEFAULT_PARAMS_.launch, 'lançamento do retargeting'), margin: Number(p.margin),
-    dataStart: cfg.dataStart, minCohort: cfg.minCohort
-  };
-  if (P.start > P.end) throw new Error('A data de início não pode ser depois da data final.');
-  if (P.end > today) throw new Error('A data final não pode ser futura.');
-  if (isNaN(P.margin) || P.margin < 0 || P.margin > 100) throw new Error('Margem deve estar entre 0 e 100.');
-  P.margin = P.margin / 100;
-  P.utmFromEff = P.utmFrom > P.start ? P.utmFrom : P.start;
-  P.generatedAt = Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm');
-  return P;
+/** ---------- Nekt (Data API) ---------- */
+const NUM_COLS_ = /^(is_crm|gross|net|disc|gap_rec_h|conv_gap_h|pay_gap_h|crm_sess|rnk|has_sess|ed|ea|ec|leads|s_(el|cv|cr|net|disc|b|c)\w*|l_\w+)$/;
+
+/** Executa o SQL pela Data API da Nekt (CSV) e devolve linhas como objetos, com números convertidos. */
+function runQuery_(cfg, sql) {
+  const key = getNektKey_();
+  if (!key) throw new Error('Informe a chave da API da Nekt no painel (Configuração) antes de rodar.');
+  const res = UrlFetchApp.fetch(NEKT_URL_, {
+    method: 'post', contentType: 'application/json', headers: { 'x-api-key': key },
+    payload: JSON.stringify({ sql: sql, mode: 'csv' }), muteHttpExceptions: true
+  });
+  const code = res.getResponseCode(), text = res.getContentText();
+  if (code === 401 || code === 403) throw new Error('A Nekt recusou a chave da API (HTTP ' + code + '). Gere outra em Configurações > API Keys.');
+  if (code >= 300) throw new Error('Erro da Nekt (HTTP ' + code + '): ' + text.slice(0, 400));
+  const body = JSON.parse(text);
+  if (body.state !== 'SUCCEEDED') throw new Error('Consulta na Nekt terminou como ' + body.state + (body.state_change_reason ? ': ' + body.state_change_reason : '') + '.');
+  return parseNektFiles_(body.presigned_urls || []);
 }
 
-/** ---------- BigQuery ---------- */
-function runQuery_(cfg, sql) {
-  if (!cfg.project) throw new Error('Informe o projeto GCP no painel (Configuração) antes de rodar.');
-  const billing = cfg.billingProject || cfg.project;
-  const request = { query: sql, useLegacySql: false, timeoutMs: 60000, maxResults: 10000 };
-  if (cfg.location) request.location = cfg.location;
-  let res = BigQuery.Jobs.query(request, billing);
-  const jobId = res.jobReference.jobId, location = res.jobReference.location;
-  let tries = 0;
-  while (!res.jobComplete) {
-    if (++tries > 100) throw new Error('A consulta demorou mais de 5 minutos.');
-    Utilities.sleep(3000);
-    res = BigQuery.Jobs.getQueryResults(billing, jobId, { maxResults: 10000, location: location });
-  }
-  const fields = res.schema.fields;
+function parseNektFiles_(urls) {
   const rows = [];
-  let page = res;
-  while (true) {
-    (page.rows || []).forEach(function (r) { rows.push(bqRow_(fields, r)); });
-    if (!page.pageToken) break;
-    page = BigQuery.Jobs.getQueryResults(billing, jobId, { maxResults: 10000, pageToken: page.pageToken, location: location });
-  }
+  urls.forEach(function (u) {
+    const r = UrlFetchApp.fetch(u, { muteHttpExceptions: true });
+    if (r.getResponseCode() >= 300) throw new Error('Falha ao baixar o resultado da Nekt (HTTP ' + r.getResponseCode() + ').');
+    let txt = r.getContentText();
+    if (!txt || !txt.trim()) return;
+    const grid = Utilities.parseCsv(txt);
+    if (grid.length < 2) return;
+    const head = grid[0];
+    for (let i = 1; i < grid.length; i++) rows.push(csvRow_(head, grid[i]));
+  });
   return rows;
 }
 
-function bqRow_(fields, r) {
+function csvRow_(head, cells) {
   const o = {};
-  fields.forEach(function (f, i) {
-    let v = r.f[i].v;
-    if (v === null || v === undefined) { o[f.name] = null; return; }
-    if (f.type === 'INTEGER' || f.type === 'FLOAT' || f.type === 'NUMERIC' || f.type === 'INT64' || f.type === 'FLOAT64') v = Number(v);
-    else if (f.type === 'BOOLEAN' || f.type === 'BOOL') v = String(v) === 'true';
-    o[f.name] = v;
+  head.forEach(function (h, j) {
+    const v = cells[j];
+    if (v === undefined || v === '' || v === null) { o[h] = null; return; }
+    o[h] = NUM_COLS_.test(h) ? Number(v) : v;
   });
   return o;
 }
@@ -123,7 +119,7 @@ function testConnection() {
   const sql = 'SELECT (SELECT CAST(MAX(SAFE_CAST(system_checkout_at AS TIMESTAMP)) AS STRING) FROM ' + tbl_(cfg, 'webhook_v2_orders_lake') + ' WHERE LOWER(brand_at_checkout)=\'voy\') AS ultimo_pedido, ' +
     '(SELECT CAST(TIMESTAMP_SECONDS(MAX(timestamp)) AS STRING) FROM ' + tbl_(cfg, 'wl_customer_io_activities') + ') AS ultima_atividade';
   const r = runQuery_(cfg, sql)[0];
-  return { ok: true, message: 'Conexão ok.\nÚltimo pedido Voy no lake: ' + r.ultimo_pedido + ' (UTC)\nÚltima atividade do Customer.io (WL): ' + r.ultima_atividade + ' (UTC)' };
+  return { ok: true, message: 'Conexão com a Nekt ok.\nÚltimo pedido Voy no lake: ' + r.ultimo_pedido + ' (UTC)\nÚltima atividade do Customer.io (WL): ' + r.ultima_atividade + ' (UTC)' };
 }
 
 /** ---------- Execução principal ---------- */

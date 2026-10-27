@@ -1,5 +1,5 @@
 /**
- * Consultas SQL (BigQuery) parametrizadas por período.
+ * Consultas SQL (dialeto BigQuery, executadas na Nekt) parametrizadas por período.
  * Todas as datas entram como 'YYYY-MM-DD' (validadas) e são interpretadas no fuso America/Sao_Paulo.
  */
 

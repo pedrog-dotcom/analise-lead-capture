@@ -208,8 +208,8 @@
   }
   window.load = load;
   function refresh() {
-    if (!confirm('Recarregar o histórico completo do BigQuery? Leva de 1 a 3 minutos.')) return;
-    busy(true); status('Atualizando os dados no BigQuery. Não feche esta página...');
+    if (!confirm('Recarregar o histórico completo da Nekt? Leva de 1 a 3 minutos.')) return;
+    busy(true); status('Atualizando os dados na Nekt. Não feche esta página...');
     google.script.run.withSuccessHandler(function (r) { status(r.message, 'ok'); busy(false); state.meta = r.meta; load(); })
       .withFailureHandler(function (e) { busy(false); status(e.message, 'err'); }).refreshData();
   }
@@ -428,8 +428,8 @@
   google.script.run.withSuccessHandler(function (s) {
     state = s; var p = s.params;
     $('start').value = p.start; $('end').value = p.end; $('utmFrom').value = p.utmFrom; $('launch').value = p.launch; $('margin').value = p.margin;
-    if (!s.configured) { status('Configure o projeto GCP (menu Análise CRM WL > Abrir painel) e clique em "Atualizar dados".', 'err'); $('sub').textContent = 'Sem configuração do BigQuery'; return; }
-    if (!s.meta) { status('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico do BigQuery (1 a 3 minutos).'); $('sub').textContent = 'Sem dados carregados'; return; }
+    if (!s.configured) { status('Informe a chave da API da Nekt (menu Análise CRM WL > Abrir painel) e clique em "Atualizar dados".', 'err'); $('sub').textContent = 'Sem configuração da Nekt'; return; }
+    if (!s.meta) { status('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt (1 a 3 minutos).'); $('sub').textContent = 'Sem dados carregados'; return; }
     load();
   }).withFailureHandler(function (e) { status(e.message, 'err'); }).getDashboardState();
 })();

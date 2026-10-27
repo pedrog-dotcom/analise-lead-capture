@@ -1,7 +1,7 @@
 /**
  * Web app com dashboard interativo.
  * Fluxo: refreshData() guarda o histórico completo em abas ocultas (pedidos e leads); o dashboard lê essas abas
- * e agrega qualquer período em segundos, sem refazer a consulta pesada no BigQuery.
+ * e agrega qualquer período em segundos, sem refazer a consulta pesada na Nekt.
  */
 
 const STORE_ORDERS_ = '_dados_pedidos';
@@ -74,7 +74,7 @@ function getDashboardState() {
   const p = Object.assign({}, DEFAULT_PARAMS_, last ? JSON.parse(last) : {});
   const yesterday = addDays_(todayBr_(), -1);
   if (!p.end || p.end > yesterday) p.end = yesterday;
-  return { params: p, today: todayBr_(), meta: meta ? JSON.parse(meta) : null, configured: !!getConfig_().project };
+  return { params: p, today: todayBr_(), meta: meta ? JSON.parse(meta) : null, configured: !!getNektKey_() };
 }
 
 function getDashboardData(params) {
@@ -83,7 +83,7 @@ function getDashboardData(params) {
   PropertiesService.getDocumentProperties().setProperty('dashParams', JSON.stringify({ start: P.start, end: P.end, utmFrom: P.utmFrom, launch: P.launch, margin: P.margin * 100 }));
   const meta = PropertiesService.getDocumentProperties().getProperty('storeMeta');
   const orderRows = readStore_(STORE_ORDERS_), leadRows = readStore_(STORE_LEADS_);
-  if (!orderRows.length) throw new Error('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico do BigQuery.');
+  if (!orderRows.length) throw new Error('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt.');
   return buildDashboardPayload_(orderRows, leadRows, P, meta ? JSON.parse(meta) : {}, todayBr_());
 }
 

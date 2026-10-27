@@ -6,7 +6,7 @@ Google Apps Script com painel para escolher o período, gerar as abas da anális
 
 Os arquivos ficam na raiz do repositório de propósito: a integração do GitHub com o Apps Script mantém o caminho da pasta no nome do arquivo, e o painel é carregado pelo nome `Painel`.
 
-Nenhum dado de cliente ou de pedido é versionado aqui; o script lê as tabelas da Nekt no BigQuery em tempo de execução.
+Nenhum dado de cliente ou de pedido é versionado aqui; o script consulta as tabelas pela Data API da Nekt em tempo de execução.
 
 ## Dashboard web app
 
