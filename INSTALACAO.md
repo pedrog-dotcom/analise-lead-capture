@@ -108,7 +108,7 @@ Mantenha os arquivos na raiz do repositório. Em subpastas o Apps Script grava o
 
 ## Dashboard web app
 
-O dashboard (`Dashboard.html` + `Dashboard.gs`) mostra todas as análises com gráficos e troca de período sem consultar o BigQuery a cada vez.
+O dashboard (`Dashboard.html` + `DashboardApi.gs`) mostra todas as análises com gráficos e troca de período sem consultar o BigQuery a cada vez.
 
 1. Configure o projeto GCP em Análise CRM WL > Abrir painel (mesma configuração da planilha).
 2. Rode **Análise CRM WL > Atualizar dados do dashboard** uma vez. Leva de 1 a 3 minutos e guarda o histórico em abas ocultas (`_dados_pedidos`, `_dados_leads`).

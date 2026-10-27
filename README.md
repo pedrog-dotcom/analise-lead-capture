@@ -10,4 +10,4 @@ Nenhum dado de cliente ou de pedido é versionado aqui; o script lê as tabelas 
 
 ## Dashboard web app
 
-`Dashboard.gs` e `Dashboard.html` entregam um dashboard interativo (Chart.js) com todas as análises e seleção de datas. Veja a seção "Dashboard web app" em `INSTALACAO.md`.
+`DashboardApi.gs` e `Dashboard.html` entregam um dashboard interativo (Chart.js) com todas as análises e seleção de datas. Veja a seção "Dashboard web app" em `INSTALACAO.md`.
