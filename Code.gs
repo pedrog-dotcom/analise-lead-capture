@@ -21,11 +21,23 @@ const DEFAULT_PARAMS_ = { start: '2026-09-01', end: '', utmFrom: '2026-09-29', l
 
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('Análise CRM WL')
+    .addItem('Abrir dashboard (web app)', 'openDashboard')
     .addItem('Abrir painel', 'showPanel')
     .addItem('Testar conexão com a Nekt', 'testConnectionMenu')
     .addItem('Atualizar dados do dashboard', 'refreshData')
     .addItem('Agendar atualização diária (6h)', 'installDailyTrigger')
     .addToUi();
+}
+
+function openDashboard() {
+  const url = ScriptApp.getService().getUrl();
+  const ui = SpreadsheetApp.getUi();
+  if (!url) {
+    ui.alert('O dashboard ainda não foi implantado.\n\nNo editor do Apps Script: Implantar > Nova implantação > tipo App da Web > Executar como: eu > Acesso: apenas eu > Implantar. Depois volte aqui e clique de novo em Abrir dashboard.');
+    return;
+  }
+  const html = HtmlService.createHtmlOutput('<p style="font-family:Arial">Abrindo o dashboard... Se não abrir, <a href="' + url + '" target="_blank">clique aqui</a>.</p><script>window.open(' + JSON.stringify(url) + ', "_blank");</script>').setWidth(360).setHeight(90);
+  ui.showModalDialog(html, 'Dashboard');
 }
 
 function showPanel() {
