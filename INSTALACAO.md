@@ -15,7 +15,7 @@ Planilha Google com painel para escolher o dia inicial e o dia final, gerar toda
 1. Crie uma planilha Google nova (ou use uma existente) e abra **Extensões > Apps Script**.
 2. Crie os arquivos com os nomes abaixo e cole o conteúdo de cada um:
    - `Code.gs`, `Sql.gs`, `Aggregations.gs`, `Sheets.gs` (tipo Script)
-   - `Painel.html` (tipo HTML, nome `Painel`)
+   - `Painel.html` (tipo HTML, nome exatamente `Painel`)
    - `appsscript.json`: em **Configurações do projeto**, marque "Mostrar o arquivo de manifesto appsscript.json no editor" e cole o conteúdo.
 3. Em **Serviços (+)**, adicione **BigQuery API** (v2) com o identificador `BigQuery`. O manifesto já declara o serviço; se o editor reclamar, adicione manualmente.
 4. Salve, volte à planilha e recarregue a página. Aparece o menu **Análise CRM WL**.
@@ -101,3 +101,7 @@ Os CSVs usam vírgula como separador, ponto decimal e datas em AAAA-MM-DD. Em le
 - "Access Denied" ou "Not found: Dataset": confira projeto, dataset e permissões; se o dataset estiver fora do local padrão, preencha o campo Local.
 - Abas com zeros: confira se o período tem pedidos e se o início não é anterior a 30/08/2026.
 - Mudou a lista de cupons CRM: edite `CRM_PROMOS_` em `Sql.gs`.
+
+## Usando a integração com o GitHub
+
+Mantenha os arquivos na raiz do repositório. Em subpastas o Apps Script grava o caminho no nome (por exemplo `apps-script/Painel.html`) e o painel não é encontrado ("No HTML file named Painel was found").
