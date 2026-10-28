@@ -11,6 +11,8 @@ const CAMP_COLS_ = ['dia', 'uc', 'leads', 'el3', 'cv3', 'cr3', 'el7', 'cv7', 'cr
 const SPEND_SHEET_ = 'Campanhas';   // aba com Day, Campaign Name, Amount Spent (custo sem imposto)
 const SPEND_TAX_ = 0.125;           // imposto aplicado sobre o custo diário
 // utm_campaign gravada no site -> nome da campanha na aba Campanhas (minúsculo), para casos em que a UTM difere do nome
+// campanhas fora da comparação (nome em minúsculo). LEADS_CREATORS capta leads de creators, não de clientes.
+const CAMP_EXCLUDE_ = ['voy_wl_meta_leads_creators_abo'];
 const CAMP_ALIASES_ = {
   'voy_wl_meta_acquisition_wineers-test_cbo': 'voy_wl_meta_acquisition_winners-test_cbo',
   'voy_wl_meta_retargeting_winners_cbo': 'voy_wl_meta_acquisition_retargeting_cbo'
@@ -121,9 +123,10 @@ function readSpend_() {
 /** Função pura: custo (com imposto) e leads por campanha no período. Nome normalizado em minúsculo; aliases aplicados. */
 function buildCampPayload_(campRows, spendRows, P) {
   const norm = function (x) { const k = String(x || '').trim().toLowerCase(); return CAMP_ALIASES_[k] || k; };
-  const spend = spendRows.filter(function (r) { return r[0] >= P.start && r[0] <= P.end; })
+  const keep = function (n) { return CAMP_EXCLUDE_.indexOf(n) < 0; };
+  const spend = spendRows.filter(function (r) { return r[0] >= P.start && r[0] <= P.end && keep(norm(r[1])); })
     .map(function (r) { return [r[0], norm(r[1]), r[2] * (1 + SPEND_TAX_), r[1]]; });
-  const leads = campRows.filter(function (r) { return String(r.dia) >= P.start && String(r.dia) <= P.end; })
+  const leads = campRows.filter(function (r) { return String(r.dia) >= P.start && String(r.dia) <= P.end && keep(norm(r.uc)); })
     .map(function (r) { const o = {}; CAMP_COLS_.forEach(function (c) { o[c] = c === 'dia' ? String(r.dia) : c === 'uc' ? norm(r.uc) : (Number(r[c]) || 0); }); return o; });
   return { spend: spend, leads: leads, tax: SPEND_TAX_, hasSpendSheet: spendRows.length > 0 };
 }

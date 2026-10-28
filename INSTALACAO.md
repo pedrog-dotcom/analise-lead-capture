@@ -125,4 +125,5 @@ Observações:
 - O custo vem da aba **Campanhas** (colunas Day, Campaign Name, Amount Spent, custo sem imposto). O dashboard soma 12,5% de imposto (`SPEND_TAX_` em `DashboardApi.gs`).
 - Campanhas com "lead" no nome são tratadas como campanhas de lead; as demais da aba, como "demais Meta".
 - Leads por campanha vêm da Nekt (`buildCampLeadsSql_` em `Sql.gs`): email novo cuja primeira captura no site tem aquela utm_campaign.
+- Campanhas fora da comparação ficam em `CAMP_EXCLUDE_` (`DashboardApi.gs`); hoje: `VOY_WL_META_LEADS_CREATORS_ABO`, que capta leads de creators.
 - Quando a UTM gravada no site difere do nome da campanha, adicione o par em `CAMP_ALIASES_` (`DashboardApi.gs`).
