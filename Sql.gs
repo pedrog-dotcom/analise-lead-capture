@@ -42,7 +42,8 @@ cap AS (
   SELECT LOWER(TRIM(COALESCE(JSON_VALUE(data,'$.email'), customer_identifiers.email))) AS email, TIMESTAMP_SECONDS(timestamp) AS ts,
     IF(JSON_VALUE(data,'$.form_id') IS NOT NULL,'popup','quiz') AS step,
     COALESCE(REGEXP_EXTRACT(LOWER(JSON_VALUE(data,'$.utm_source')), r'([a-z0-9_.\\-]+)'),'(sem utm)') AS us,
-    COALESCE(REGEXP_EXTRACT(LOWER(JSON_VALUE(data,'$.utm_campaign')), r'([a-z0-9_.\\-]+)'),'(sem utm)') AS uc
+    COALESCE(REGEXP_EXTRACT(LOWER(JSON_VALUE(data,'$.utm_campaign')), r'([a-z0-9_.\\-]+)'),'(sem utm)') AS uc,
+    LOWER(TRIM(JSON_VALUE(data,'$.utm_campaign'))) AS ucr
   FROM ${tbl_(cfg, 'wl_customer_io_activities')}
   WHERE type='event' AND timestamp >= UNIX_SECONDS(TIMESTAMP('${cfg.dataStart}'))
     AND (JSON_VALUE(data,'$.form_id') IS NOT NULL OR JSON_VALUE(data,'$.landing_url') IS NOT NULL OR JSON_VALUE(data,'$.quiz_completed') IS NOT NULL OR JSON_VALUE(data,'$.peso_desejado') IS NOT NULL)
@@ -194,4 +195,47 @@ SELECT CASE WHEN GROUPING(usb)=0 AND GROUPING(d)=1 THEN 'src' WHEN GROUPING(d)=0
 FROM k
 GROUP BY GROUPING SETS ((fstep, usb, in_s), (d, cls_l, exp_l), (d, fstep, usb))
 ORDER BY sec, dia, usb`;
+}
+
+/**
+ * Leads por campanha da Meta: 1 linha por (dia da primeira captura, utm_campaign da primeira captura).
+ * Lead = email novo (primeira captura no período); quem já tinha comprado antes da captura fica de fora.
+ */
+function buildCampLeadsSql_(cfg, start, end) {
+  assertDate_(start, 'início'); assertDate_(end, 'fim');
+  const endExcl = addDays_(end, 1);
+  return `WITH${sharedCtes_(cfg)},
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+ordall AS (
+  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, p.pc IN (${crmList_()}) AS is_crm, COALESCE(cu0.email, ai.email) AS email
+  FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
+  LEFT JOIN promo p ON p.order_id=x.order_id LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio
+  WHERE LOWER(x.brand_at_checkout)='voy' AND x.order_taxonomy_business_category='weight_loss' AND INITCAP(REPLACE(x.country,'_',' '))='Brazil'
+    AND SAFE_CAST(x.system_checkout_at AS TIMESTAMP) >= TIMESTAMP('2026-01-01')
+),
+cutoff AS (SELECT TIMESTAMP(CURRENT_DATE('America/Sao_Paulo'), 'America/Sao_Paulo') AS cut),
+leads AS (
+  SELECT email, MIN(ts) AS first_ts, ARRAY_AGG(STRUCT(us AS us, ucr AS ucr) ORDER BY ts LIMIT 1)[OFFSET(0)] AS f
+  FROM cap WHERE email LIKE '%@%' GROUP BY email
+  HAVING MIN(ts) >= TIMESTAMP('${start} 00:00:00', 'America/Sao_Paulo') AND MIN(ts) < TIMESTAMP('${endExcl} 00:00:00', 'America/Sao_Paulo')
+),
+pb AS (SELECT email, MIN(cts) AS first_buy FROM ordall WHERE is_confirmed AND order_context NOT LIKE 'unconfirmed%' AND email IS NOT NULL GROUP BY 1),
+cv AS (
+  SELECT l.email, ARRAY_AGG(STRUCT(o.cts AS cts, IFNULL(o.is_crm, FALSE) AS is_crm) ORDER BY o.cts LIMIT 1)[OFFSET(0)] AS c
+  FROM leads l JOIN ordall o ON o.email=l.email AND o.is_confirmed AND o.order_context='acquisition' AND o.cts >= l.first_ts GROUP BY l.email
+),
+m AS (
+  SELECT DATE(l.first_ts,'America/Sao_Paulo') AS d, COALESCE(NULLIF(l.f.ucr,''),'(sem campanha)') AS uc, cv.c,
+    TIMESTAMP_DIFF(cv.c.cts, l.first_ts, MINUTE) AS dtc,
+    l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 3 DAY) AS e3, l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 7 DAY) AS e7, l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
+  FROM leads l LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email CROSS JOIN cutoff
+  WHERE (pb.first_buy IS NULL OR pb.first_buy >= l.first_ts) AND (l.f.us IN ('fb','facebook','meta') OR l.f.ucr LIKE '%voy_wl_meta%')
+)
+SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, uc, COUNT(*) AS leads,
+  COUNTIF(e3) AS el3, COUNTIF(e3 AND dtc<=4320) AS cv3, COUNTIF(e3 AND c.is_crm AND dtc<=4320) AS cr3,
+  COUNTIF(e7) AS el7, COUNTIF(e7 AND dtc<=10080) AS cv7, COUNTIF(e7 AND c.is_crm AND dtc<=10080) AS cr7,
+  COUNTIF(e14) AS el14, COUNTIF(e14 AND dtc<=20160) AS cv14, COUNTIF(e14 AND c.is_crm AND dtc<=20160) AS cr14,
+  COUNTIF(e7 AND dtc<=60) AS t1h, COUNTIF(e7 AND dtc<=1440) AS t1d, COUNTIF(e7 AND dtc<=4320) AS t3d,
+  COUNTIF(c.cts IS NOT NULL) AS cvall, SUM(IF(c.cts IS NOT NULL, dtc, 0)) AS sdtc
+FROM m GROUP BY 1, 2 ORDER BY 1, 2`;
 }

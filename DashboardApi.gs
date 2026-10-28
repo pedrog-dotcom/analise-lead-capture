@@ -6,6 +6,15 @@
 
 const STORE_ORDERS_ = '_dados_pedidos';
 const STORE_LEADS_ = '_dados_leads';
+const STORE_CAMP_ = '_dados_campanhas_leads';
+const CAMP_COLS_ = ['dia', 'uc', 'leads', 'el3', 'cv3', 'cr3', 'el7', 'cv7', 'cr7', 'el14', 'cv14', 'cr14', 't1h', 't1d', 't3d', 'cvall', 'sdtc'];
+const SPEND_SHEET_ = 'Campanhas';   // aba com Day, Campaign Name, Amount Spent (custo sem imposto)
+const SPEND_TAX_ = 0.125;           // imposto aplicado sobre o custo diário
+// utm_campaign gravada no site -> nome da campanha na aba Campanhas (minúsculo), para casos em que a UTM difere do nome
+const CAMP_ALIASES_ = {
+  'voy_wl_meta_acquisition_wineers-test_cbo': 'voy_wl_meta_acquisition_winners-test_cbo',
+  'voy_wl_meta_retargeting_winners_cbo': 'voy_wl_meta_acquisition_retargeting_cbo'
+};
 const LEAD_STORE_COLS_ = ['sec', 'dia', 'fstep', 'usb', 'cls_l', 'exp_l', 'leads', 's_el7', 's_cv7', 's_cr7', 's_el14', 's_cv14', 's_cr14', 's_net14', 's_disc14', 's_net14crm',
   's_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d', 's_c1d', 's_c3d', 's_c7d', 's_c14d', 'l_leads', 'l_el14', 'l_cv14', 'l_cr14', 'l_el7', 'l_cv7', 'l_cr7', 'l_net14', 'l_disc14'];
 
@@ -25,6 +34,8 @@ function refreshData() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   writeStore_(ss, STORE_ORDERS_, BASE_COLS_, orders, ['data_brt']);
   writeStore_(ss, STORE_LEADS_, LEAD_STORE_COLS_, leads, ['dia']);
+  const camp = runQuery_(cfg, buildCampLeadsSql_(cfg, cfg.minCohort, end));
+  writeStore_(ss, STORE_CAMP_, CAMP_COLS_, camp, ['dia', 'uc']);
   const props = PropertiesService.getDocumentProperties();
   const meta = { lastRefresh: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'), dataEnd: end, orders: orders.length, leadRows: leads.length };
   props.setProperty('storeMeta', JSON.stringify(meta));
@@ -84,7 +95,37 @@ function getDashboardData(params) {
   const meta = PropertiesService.getDocumentProperties().getProperty('storeMeta');
   const orderRows = readStore_(STORE_ORDERS_), leadRows = readStore_(STORE_LEADS_);
   if (!orderRows.length) throw new Error('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt.');
-  return buildDashboardPayload_(orderRows, leadRows, P, meta ? JSON.parse(meta) : {}, todayBr_());
+  const out = buildDashboardPayload_(orderRows, leadRows, P, meta ? JSON.parse(meta) : {}, todayBr_());
+  out.M = buildCampPayload_(readStore_(STORE_CAMP_), readSpend_(), P);
+  return out;
+}
+
+/** Custo diário por campanha da aba Campanhas: [[dia, campanha, custo sem imposto]]. */
+function readSpend_() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SPEND_SHEET_);
+  if (!sh || sh.getLastRow() < 2) return [];
+  const v = sh.getDataRange().getValues(), h = v[0].map(function (x) { return String(x).trim().toLowerCase(); });
+  const iD = h.indexOf('day'), iC = h.indexOf('campaign name'), iA = h.indexOf('amount spent');
+  if (iD < 0 || iC < 0 || iA < 0) throw new Error('A aba "' + SPEND_SHEET_ + '" precisa das colunas Day, Campaign Name e Amount Spent.');
+  const out = [];
+  for (let i = 1; i < v.length; i++) {
+    let day = v[i][iD];
+    if (day instanceof Date) day = Utilities.formatDate(day, 'America/Sao_Paulo', 'yyyy-MM-dd'); else day = String(day).slice(0, 10);
+    const amt = Number(String(v[i][iA]).replace(',', '.'));
+    if (!day || !v[i][iC] || isNaN(amt)) continue;
+    out.push([day, String(v[i][iC]).trim(), amt]);
+  }
+  return out;
+}
+
+/** Função pura: custo (com imposto) e leads por campanha no período. Nome normalizado em minúsculo; aliases aplicados. */
+function buildCampPayload_(campRows, spendRows, P) {
+  const norm = function (x) { const k = String(x || '').trim().toLowerCase(); return CAMP_ALIASES_[k] || k; };
+  const spend = spendRows.filter(function (r) { return r[0] >= P.start && r[0] <= P.end; })
+    .map(function (r) { return [r[0], norm(r[1]), r[2] * (1 + SPEND_TAX_), r[1]]; });
+  const leads = campRows.filter(function (r) { return String(r.dia) >= P.start && String(r.dia) <= P.end; })
+    .map(function (r) { const o = {}; CAMP_COLS_.forEach(function (c) { o[c] = c === 'dia' ? String(r.dia) : c === 'uc' ? norm(r.uc) : (Number(r[c]) || 0); }); return o; });
+  return { spend: spend, leads: leads, tax: SPEND_TAX_, hasSpendSheet: spendRows.length > 0 };
 }
 
 /** Função pura (testável em Node). */

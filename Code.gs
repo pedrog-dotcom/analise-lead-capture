@@ -99,7 +99,7 @@ function normalizeParams_(p, cfg) {
 }
 
 /** ---------- Nekt (Data API) ---------- */
-const NUM_COLS_ = /^(is_crm|gross|net|disc|gap_rec_h|conv_gap_h|pay_gap_h|crm_sess|rnk|has_sess|ed|ea|ec|leads|s_(el|cv|cr|net|disc|b|c)\w*|l_\w+)$/;
+const NUM_COLS_ = /^(is_crm|gross|net|disc|gap_rec_h|conv_gap_h|pay_gap_h|crm_sess|rnk|has_sess|ed|ea|ec|leads|s_(el|cv|cr|net|disc|b|c)\w*|l_\w+|(el|cv|cr)\d+|t1h|t1d|t3d|cvall|sdtc)$/;
 
 /** Executa o SQL pela Data API da Nekt (CSV) e devolve linhas como objetos, com números convertidos. */
 function runQuery_(cfg, sql) {

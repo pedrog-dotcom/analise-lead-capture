@@ -119,3 +119,10 @@ Observações:
 - O período do dashboard só vai até ontem; janelas de conversão (7 e 14 dias) só entram quando completas, como na planilha.
 - Para recarregar o histórico na hora, use o botão Atualizar dados no topo do dashboard.
 - Depois de mudar o código, crie uma nova versão da implantação para a URL refletir a mudança.
+
+## Campanhas de lead (Meta)
+
+- O custo vem da aba **Campanhas** (colunas Day, Campaign Name, Amount Spent, custo sem imposto). O dashboard soma 12,5% de imposto (`SPEND_TAX_` em `DashboardApi.gs`).
+- Campanhas com "lead" no nome são tratadas como campanhas de lead; as demais da aba, como "demais Meta".
+- Leads por campanha vêm da Nekt (`buildCampLeadsSql_` em `Sql.gs`): email novo cuja primeira captura no site tem aquela utm_campaign.
+- Quando a UTM gravada no site difere do nome da campanha, adicione o par em `CAMP_ALIASES_` (`DashboardApi.gs`).
