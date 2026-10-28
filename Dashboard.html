@@ -65,10 +65,17 @@
   .tag { display:inline-block; font-family:'Inter', sans-serif; font-size:10.5px; font-weight:600; padding:1px 6px; border-radius:5px; background:var(--neg-bg); color:var(--neg); margin-left:4px; }
   .empty { color:var(--mut); font-style:italic; }
   input[type=checkbox] { accent-color:var(--primary); }
+  .info { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:6px; border-radius:50%; background:var(--soft); border:1px solid var(--softline); color:var(--primary); font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; font-style:normal; cursor:help; vertical-align:middle; user-select:none; }
+  .info:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+  .chartbox > .info { position:absolute; top:0; right:0; z-index:2; margin:0; }
+  .inforow { display:flex; justify-content:flex-end; margin-bottom:4px; }
+  #tipbox { position:fixed; z-index:100; max-width:360px; background:var(--primary); color:#fff; border-radius:9px; padding:10px 12px; font-size:11.5px; line-height:1.45; box-shadow:0 8px 20px -8px rgba(25,48,30,.5); pointer-events:none; opacity:0; transition:opacity .1s; }
+  #tipbox b { color:#FFC2A8; font-family:'Archivo', sans-serif; display:block; margin-bottom:3px; }
   @media (max-width:900px){ .layout{grid-template-columns:1fr;} nav.toc{display:none;} .two{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
+<div id="tipbox"></div>
 <header>
   <h1>Captura de email e vendas via CRM · Voy BR</h1>
   <div class="sub" id="sub">Carregando...</div>
@@ -541,6 +548,54 @@
     a.download = (kind === 'leads' ? 'leads_diario_' : 'aquisicoes_diario_') + D.meta.start + '_' + D.meta.end + '.csv';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
+
+
+  // ---------- ícone "i" com a forma de cálculo de cada gráfico e tabela
+  var HOW = {
+    cDaily: 'Aquisições confirmadas (primeiro pedido WL BR) por dia do checkout, no fuso de Brasília. "Com cupom CRM" = promotion_code na lista de cupons de CRM. Linha = aquisições com cupom CRM ÷ aquisições do dia.',
+    cClass: 'Cada comprador do período entra uma vez, na etapa mais avançada em que deixou o email antes do início da visita de compra: checkout (conta criada antes) > questionário > pop-up. "Sem captura anterior" = nenhuma captura registrada antes da visita; "Sem email" = pedido sem email vinculado no Customer.io.',
+    cShare: 'Para cada etapa: compradores com cupom CRM ÷ total de compradores da etapa no período.',
+    cCrmMix: 'Vendas com cupom CRM do período, separadas pela etapa de captura do comprador. Fatias somam 100%.',
+    cSavg: 'Leads com 14 dias completos que não compraram nas primeiras 72h. Média por lead de emails entregues (delivered_email) e WhatsApp/SMS enviados (sent_action) do Customer.io entre a captura e 72h depois.',
+    cSline: 'Mesmos leads do gráfico ao lado, agrupados pelo nº de disparos nas primeiras 72h. Taxa = leads que compraram com cupom CRM entre 72h e 14 dias ÷ leads do grupo. Grupos com menos de 150 leads ficam de fora.',
+    cSdec: 'Pop-up (real) e Questionário (real) = compra com cupom CRM entre 72h e 14 dias ÷ leads. Barra do meio = taxa do pop-up em cada faixa de disparos, ponderada pela distribuição de disparos do questionário. Se ela ficasse perto do questionário, a diferença viria dos disparos; se fica perto do pop-up real, vem do perfil do lead.',
+    tS: 'Leads = leads com 14 dias completos que não compraram nas primeiras 72h. Compra CRM = compraram com cupom CRM entre 72h e 14 dias ÷ leads da linha.',
+    cCum: 'Leads (emails novos) capturados no período e acompanhados por 14 dias. Para cada momento: compras feitas até ali ÷ compras feitas em até 14 dias. Linha tracejada só com compras com cupom CRM.',
+    cTime: 'Compradores do período por etapa de captura. Tempo = início da visita de compra menos a captura mais recente da etapa. Percentual dentro de cada etapa.',
+    cSrc: 'Leads (emails novos) cuja primeira captura teve aquele utm_source, capturados a partir da data de UTM confiável e com 14 dias completos. Taxa = compraram com cupom CRM em até 14 dias ÷ leads. Cinza = menos de 500 leads.',
+    tSrc: 'Leads acompanhados = emails novos com 14 dias completos. Compraram em 14 dias = qualquer aquisição em até 14 dias da captura. Compraram com cupom CRM = só aquisições com cupom CRM.',
+    tCamp: 'Compradores do período (pop-up, questionário e checkout) pela utm_campaign da captura mais recente da etapa; no checkout, a da sessão do pedido. "Com cupom CRM" = quantos desses usaram cupom CRM.',
+    cAttr: 'Vendas com cupom CRM do período, pela campanha de CRM com o último clique em até 30 dias antes; sem clique, a última abertura; sem abertura, o último envio. Cores = etapa de captura do comprador.',
+    tMcmp: 'Custo = Amount Spent da aba Campanhas + 12,5% de imposto. Leads = emails novos cuja primeira captura no site teve a utm_campaign da campanha. Compram em 3/7 dias = qualquer aquisição até 3/7 dias depois da captura ÷ leads com janela completa. Dias até a compra = média entre captura e compra, só de quem já comprou.',
+    cMcpl: 'Por dia: custo com imposto das campanhas do grupo ÷ emails novos capturados por elas no mesmo dia.',
+    cMconv: 'Leads com janela completa (3 ou 7 dias até ontem) que fizeram qualquer aquisição dentro da janela ÷ leads com janela completa.',
+    cMtime: 'Entre os leads que compraram em até 7 dias: quanto tempo depois da captura a compra aconteceu.',
+    tM: 'Mesmo cálculo da tabela comparativa, campanha a campanha. "Sem leads rastreados" = teve custo, mas nenhum email capturado no site com essa UTM.',
+    cTier: 'Vendas com cupom CRM por etapa. Último contato com email nas 24h antes do checkout, pela tabela de atribuição de cupons: clique > abertura > só envio > nenhum.',
+    cExp: 'Leads do questionário com 14 dias completos e que não compraram nas primeiras 24h. "Recebeu email" = ao menos 1 email entregue entre 1 e 8 dias depois da captura. Taxa = compraram em até 14 dias ÷ leads do grupo.',
+    cPP: 'Leads capturados nos 14 dias antes e nos dias depois do lançamento do retargeting, contados a partir de 24h depois da captura. Taxa = compraram em até 7 dias ÷ leads.'
+  };
+  function addInfo() {
+    Object.keys(HOW).forEach(function (id) {
+      var el = $(id); if (!el || el.getAttribute('data-info')) return; el.setAttribute('data-info', 1);
+      var icon = document.createElement('i'); icon.className = 'info'; icon.textContent = 'i'; icon.setAttribute('data-how', HOW[id]);
+      var host = el.tagName === 'CANVAS' ? el.parentNode : el, h3 = null, p = host.previousElementSibling;
+      while (p && !h3) { if (p.tagName === 'H3') h3 = p; else if (p.classList.contains('howto')) p = p.previousElementSibling; else break; }
+      if (h3) h3.appendChild(icon);
+      else if (el.tagName === 'CANVAS') host.appendChild(icon);
+      else { var row = document.createElement('div'); row.className = 'inforow'; row.appendChild(icon); host.parentNode.insertBefore(row, host); }
+    });
+  }
+  var tipbox = $('tipbox');
+  document.addEventListener('mouseover', function (e) {
+    var t = e.target.closest && e.target.closest('.info'); if (!t) return;
+    tipbox.innerHTML = '<b>Como foi medido</b>' + t.getAttribute('data-how'); tipbox.style.opacity = 1;
+    var r = t.getBoundingClientRect(), w = 360, x = Math.min(window.innerWidth - w - 12, Math.max(12, r.left - w / 2)), y = r.bottom + 8;
+    tipbox.style.left = x + 'px'; tipbox.style.top = y + 'px';
+    var hb = tipbox.getBoundingClientRect(); if (hb.bottom > window.innerHeight - 8) tipbox.style.top = (r.top - hb.height - 8) + 'px';
+  });
+  document.addEventListener('mouseout', function (e) { if (e.target.closest && e.target.closest('.info')) tipbox.style.opacity = 0; });
+  addInfo();
 
   // ---------- índice lateral acompanha a rolagem
   var links = [].slice.call(document.querySelectorAll('nav.toc a'));
