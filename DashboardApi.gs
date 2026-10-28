@@ -7,9 +7,9 @@
 const STORE_ORDERS_ = '_dados_pedidos';
 const STORE_LEADS_ = '_dados_leads';
 const STORE_CAMP_ = '_dados_campanhas_leads';
-const CAMP_COLS_ = ['dia', 'uc', 'leads', 'el3', 'cv3', 'cr3', 'el7', 'cv7', 'cr7', 'el14', 'cv14', 'cr14', 't1h', 't1d', 't3d', 'cvall', 'sdtc'];
+const CAMP_COLS_ = ['dia', 'usb', 'uc', 'leads', 'el3', 'cv3', 'cr3', 'el7', 'cv7', 'cr7', 'el14', 'cv14', 'cr14', 't1h', 't1d', 't3d', 'cvall', 'crall', 'sdtc'];
 const STORE_SENDS_ = '_dados_disparos';
-const SENDS_COLS_ = ['dia', 'st', 'bk', 'n_all', 'n14', 's14_sum', 'el', 'm72_sum', 'a72_sum', 'cv', 'cr'];
+const SENDS_COLS_ = ['dia', 'st', 'bk', 'n_all', 'n14', 's14_sum', 'el', 's14_el', 'm72_sum', 'a72_sum', 'cv', 'cr'];
 const SPEND_SHEET_ = 'Campanhas';   // aba com Day, Campaign Name, Amount Spent (custo sem imposto)
 const SPEND_TAX_ = 0.125;           // imposto aplicado sobre o custo diário
 // utm_campaign gravada no site -> nome da campanha na aba Campanhas (minúsculo), para casos em que a UTM difere do nome
@@ -19,8 +19,8 @@ const CAMP_ALIASES_ = {
   'voy_wl_meta_acquisition_wineers-test_cbo': 'voy_wl_meta_acquisition_winners-test_cbo',
   'voy_wl_meta_retargeting_winners_cbo': 'voy_wl_meta_acquisition_retargeting_cbo'
 };
-const LEAD_STORE_COLS_ = ['sec', 'dia', 'fstep', 'usb', 'cls_l', 'exp_l', 'leads', 's_el7', 's_cv7', 's_cr7', 's_el14', 's_cv14', 's_cr14', 's_net14', 's_disc14', 's_net14crm',
-  's_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d', 's_c1d', 's_c3d', 's_c7d', 's_c14d', 'l_leads', 'l_el14', 'l_cv14', 'l_cr14', 'l_el7', 'l_cv7', 'l_cr7', 'l_net14', 'l_disc14'];
+const LEAD_STORE_COLS_ = ['sec', 'dia', 'fstep', 'usb', 'cls_l', 'exp_l', 'nw', 'leads', 's_el7', 's_cv7', 's_cr7', 's_el14', 's_cv14', 's_cr14', 's_net14', 's_disc14', 's_net14crm',
+  's_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d', 's_c1h', 's_c6h', 's_c1d', 's_c3d', 's_c7d', 's_c14d', 's_dsum14', 's_cvall', 's_dsumall', 'l_leads', 'l_el14', 'l_cv14', 'l_cr14', 'l_el7', 'l_cv7', 'l_cr7', 'l_net14', 'l_disc14'];
 
 function doGet() {
   return HtmlService.createTemplateFromFile('Dashboard').evaluate()
@@ -132,7 +132,7 @@ function buildCampPayload_(campRows, spendRows, P) {
   const spend = spendRows.filter(function (r) { return r[0] >= P.start && r[0] <= P.end && keep(norm(r[1])); })
     .map(function (r) { return [r[0], norm(r[1]), r[2] * (1 + SPEND_TAX_), r[1]]; });
   const leads = campRows.filter(function (r) { return String(r.dia) >= P.start && String(r.dia) <= P.end && keep(norm(r.uc)); })
-    .map(function (r) { const o = {}; CAMP_COLS_.forEach(function (c) { o[c] = c === 'dia' ? String(r.dia) : c === 'uc' ? norm(r.uc) : (Number(r[c]) || 0); }); return o; });
+    .map(function (r) { const o = {}; CAMP_COLS_.forEach(function (c) { o[c] = c === 'dia' ? String(r.dia) : c === 'uc' ? norm(r.uc) : c === 'usb' ? String(r.usb || '') : (Number(r[c]) || 0); }); return o; });
   return { spend: spend, leads: leads, tax: SPEND_TAX_, hasSpendSheet: spendRows.length > 0 };
 }
 
@@ -145,11 +145,19 @@ function buildDashboardPayload_(orderRows, leadRows, P, meta, today) {
   const L = leadsForRange_(leadRows, leadStart, P.end, P.utmFromEff < leadStart ? leadStart : P.utmFromEff);
   CLASSES_.forEach(function (k) { delete O.time[k].gaps; delete O.timeCrm[k].gaps; });
   const T = buildNarrative_(O, L, P);
+  // leads novos x já na base, por dia e etapa da primeira captura
+  const nb = {};
+  leadRows.forEach(function (r) {
+    if (r.sec !== 'dia' || String(r.dia) < leadStart || String(r.dia) > P.end) return;
+    const key = r.dia + '|' + (String(r.nw).toLowerCase() === 'true' ? 1 : 0) + '|' + r.fstep;
+    nb[key] = (nb[key] || 0) + (Number(r.leads) || 0);
+  });
+  const NB = Object.keys(nb).map(function (k) { const p = k.split('|'); return [p[0], Number(p[1]), p[2], nb[k]]; });
   return {
     meta: Object.assign({}, meta, { today: today, start: P.start, end: P.end, utmFrom: P.utmFromEff, launch: P.launch, margin: P.margin, dataStart: P.dataStart, minCohort: P.minCohort, ordersInRange: rows.length }),
     O: O, L: { src: L.src, srcStep: L.srcStep, srcAll: L.srcAll, land: L.land, buckets: L.buckets, landRows: L.landRows },
     narrative: T, dailyOrders: dailyOrdersRows_(O), dailyLeads: dailyLeadsRows_(L, P.utmFromEff),
-    crmPromos: CRM_PROMOS_, classDesc: CLASS_DESC_
+    crmPromos: CRM_PROMOS_, classDesc: CLASS_DESC_, NB: NB
   };
 }
 

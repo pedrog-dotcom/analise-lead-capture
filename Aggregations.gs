@@ -49,6 +49,8 @@ function computeOrders_(rows) {
     out.time[k] = { n: 0, gaps: [] }; out.timeCrm[k] = { n: 0, gaps: [] };
     BUCKET_KEYS_.forEach(function (b) { out.time[k][b] = 0; out.timeCrm[k][b] = 0; });
   });
+  const J = out.journey = { hist: {}, capsSum: 0, capsN: 0, stepSum: { pop: 0, quiz: 0, ck: 0 }, stepHist: { pop: {}, quiz: {}, ck: {} }, lv: {}, rnk: {}, visSum: 0 };
+  ['A', 'B', 'C'].forEach(function (s) { J.lv[s] = { n: 0, crm: 0, prevPop: 0, prevQuiz: 0, prevAny: 0 }; });
   const campCount = {}, campRows = {}, campAttrCount = {}, promoRows = {}, sessCount = {};
   let withSession = 0;
   rows.forEach(function (r) {
@@ -86,6 +88,17 @@ function computeOrders_(rows) {
       const ss = r.s_us ? r.s_us : '(sem sessão ou direto)';
       sessCount[ss] = (sessCount[ss] || 0) + 1;
     }
+    // jornada de capturas (visitas de até 60 min)
+    if (k !== 'X') {
+      const vp = num_(r.v_pop), vq = num_(r.v_quiz), vc = num_(r.v_ck), nc = vp + vq + vc, hk = nc >= 8 ? '8+' : String(nc);
+      const h = J.hist[hk] = J.hist[hk] || { n: 0, crm: 0 }; h.n++; if (crm) h.crm++;
+      J.capsSum += nc; J.capsN++; J.visSum += num_(r.n_vis);
+      J.stepSum.pop += vp; J.stepSum.quiz += vq; J.stepSum.ck += vc;
+      [['pop', vp], ['quiz', vq], ['ck', vc]].forEach(function (p) { const b = p[1] >= 3 ? '3+' : String(p[1]); J.stepHist[p[0]][b] = (J.stepHist[p[0]][b] || 0) + 1; });
+      const lv = J.lv[r.lv_step];
+      if (lv) { lv.n++; if (crm) lv.crm++; if (num_(r.prev_pop) === 1) lv.prevPop++; if (num_(r.prev_quiz) === 1) lv.prevQuiz++; if (num_(r.n_vis) > 1) lv.prevAny++; }
+    }
+    if (r.rnk !== null && r.rnk !== undefined && r.rnk !== '') { const rk = num_(r.rnk) >= 5 ? '5+' : String(num_(r.rnk)); const x = J.rnk[rk] = J.rnk[rk] || { n: 0, crm: 0 }; x.n++; if (crm) x.crm++; }
     // semana
     const w = weekStart_(r.data_brt);
     const wk = out.weekly[w] = out.weekly[w] || { n: 0, crm: 0, net: 0 }; wk.n++; if (crm) wk.crm++; wk.net += net;
@@ -113,7 +126,7 @@ function computeOrders_(rows) {
 function computeLeads_(rows, params) {
   const out = { src: {}, srcStep: {}, srcAll: {}, land: {}, daily: [], buckets: {}, totalSrc: {} };
   const sumKeys = ['leads', 's_el7', 's_cv7', 's_cr7', 's_el14', 's_cv14', 's_cr14', 's_net14', 's_disc14', 's_net14crm'];
-  const bKeys = ['s_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d', 's_c1d', 's_c3d', 's_c7d', 's_c14d'];
+  const bKeys = ['s_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d', 's_c1h', 's_c6h', 's_c1d', 's_c3d', 's_c7d', 's_c14d', 's_el14', 's_cv14', 's_dsum14', 's_cvall', 's_dsumall', 'leads'];
   const lKeys = ['l_leads', 'l_el7', 'l_cv7', 'l_cr7', 'l_el14', 'l_cv14', 'l_cr14', 'l_net14', 'l_disc14'];
   bKeys.forEach(function (b) { out.buckets[b] = 0; });
   rows.forEach(function (r) {
@@ -126,6 +139,7 @@ function computeLeads_(rows, params) {
       bKeys.forEach(function (k) { out.buckets[k] += num_(r[k]); });
     } else if (r.sec === 'src') {
       const o = out.totalSrc.fora = out.totalSrc.fora || { leads: 0 }; o.leads += num_(r.leads);
+      bKeys.forEach(function (k) { out.buckets[k] += num_(r[k]); });
     } else if (r.sec === 'land') {
       const key = r.cls_l + '|' + (String(r.exp_l) === 'true' ? 'sim' : 'nao');
       const o = out.land[key] = out.land[key] || {}; lKeys.forEach(function (k) { o[k] = (o[k] || 0) + num_(r[k]); });
@@ -164,6 +178,7 @@ function leadsForRange_(rows, start, end, utmFrom) {
   const sel = [];
   rows.forEach(function (r) {
     if (r.dia < start || r.dia > end) return;
+    if (r.nw !== undefined && String(r.nw).toLowerCase() !== 'true') return;   // só leads novos
     if (r.sec === 'land') sel.push(r);
     else if (r.sec === 'dia') {
       sel.push(r);

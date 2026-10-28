@@ -138,3 +138,13 @@ Observações:
 ## Identidade visual
 
 Mesma identidade dos dashboards Growth Pacing (tema Voy): verde #19301E, coral #FF8A5B, fundo #F7F6F2, fontes Archivo, Inter e JetBrains Mono.
+
+## Versão 3 (ajustes de 28/10/2026)
+
+- **Lead novo** = email capturado no site sem nenhum registro anterior no Customer.io (histórico desde 10/07/2026). Recapturas de quem já estava na base aparecem à parte. Vale para leads, fontes, campanhas, tempo e disparos.
+- **Visita** = capturas (pop-up, questionário, criação de conta) com menos de 60 minutos entre si. Usada na jornada de capturas e na etapa da última visita antes da compra.
+- **Tempo até a compra** medido sempre a partir da primeira captura.
+- **Custo por comprador** (em 7 dias e até hoje) e custo por comprador via CRM nas campanhas da Meta.
+- Janela de retargeting (antes e depois) removida do estudo.
+- Botão Imprimir / PDF no topo do dashboard.
+- Depois do pull, rode "Atualizar dados do dashboard" de novo: as consultas mudaram e as abas ocultas ganham colunas novas.

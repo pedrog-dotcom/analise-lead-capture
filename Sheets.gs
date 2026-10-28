@@ -355,8 +355,8 @@ function writeMetodologia_(sh, P) {
 }
 
 /** ---------- Base pedidos ---------- */
-const BASE_COLS_ = ['order_id', 'data_brt', 'cls', 'is_crm', 'promotion_code', 'gross', 'net', 'disc', 'cap_src', 'cap_camp', 'gap_rec_h', 'conv_gap_h', 'pay_gap_h', 'tier', 's_us', 'crm_sess', 'rnk', 'has_sess', 'ed', 'ea', 'ec', 'camp_attr', 'bucket'];
-const BASE_HEADS_ = ['order_id', 'data_checkout', 'classe', 'cupom_crm', 'promocao', 'receita_bruta', 'receita_liquida', 'desconto', 'captura_utm_source', 'captura_utm_campaign', 'h_captura_ate_sessao', 'h_captura_ate_pedido', 'h_captura_ate_pagamento', 'faixa_toque_crm', 'sessao_utm_source', 'sessao_crm', 'rank_sessao', 'tem_sessao', 'emails_entregues_30d', 'emails_abertos_30d', 'emails_clicados_30d', 'campanha_crm_atribuida', 'faixa_tempo_captura'];
+const BASE_COLS_ = ['order_id', 'data_brt', 'cls', 'is_crm', 'promotion_code', 'gross', 'net', 'disc', 'cap_src', 'cap_camp', 'gap_rec_h', 'conv_gap_h', 'pay_gap_h', 'tier', 's_us', 'crm_sess', 'rnk', 'has_sess', 'ed', 'ea', 'ec', 'camp_attr', 'bucket', 'n_vis', 'v_pop', 'v_quiz', 'v_ck', 'lv_step', 'prev_pop', 'prev_quiz'];
+const BASE_HEADS_ = ['order_id', 'data_checkout', 'classe', 'cupom_crm', 'promocao', 'receita_bruta', 'receita_liquida', 'desconto', 'captura_utm_source', 'captura_utm_campaign', 'h_primeira_captura_ate_pedido', 'h_primeira_captura_ate_sessao', 'h_primeira_captura_ate_pagamento', 'faixa_toque_crm', 'sessao_utm_source', 'sessao_crm', 'rank_sessao', 'tem_sessao', 'emails_entregues_30d', 'emails_abertos_30d', 'emails_clicados_30d', 'campanha_crm_atribuida', 'faixa_tempo_captura', 'visitas_antes_compra', 'visitas_com_popup', 'visitas_com_questionario', 'conta_criada_antes', 'etapa_ultima_visita', 'popup_em_visita_anterior', 'questionario_em_visita_anterior'];
 
 function writeBase_(sh, rows) {
   sh.clear();

@@ -35,6 +35,7 @@ function sharedCtes_(cfg) {
   return `
 cu0 AS (SELECT id, ANY_VALUE(LOWER(TRIM(email))) AS email FROM ${tbl_(cfg, 'wl_customer_io_customers')} GROUP BY id),
 ai AS (SELECT customer_identifiers.id AS id, ANY_VALUE(LOWER(TRIM(customer_identifiers.email))) AS email FROM ${tbl_(cfg, 'wl_customer_io_activities')} WHERE timestamp >= UNIX_SECONDS(TIMESTAMP('${aiFrom}')) AND customer_identifiers.email IS NOT NULL GROUP BY 1),
+fa AS (SELECT LOWER(TRIM(customer_identifiers.email)) AS email, MIN(timestamp) AS t0 FROM ${tbl_(cfg, 'wl_customer_io_activities')} WHERE customer_identifiers.email IS NOT NULL GROUP BY 1),
 tch AS (SELECT order_id, ANY_VALUE(cio_customer_id) AS cio FROM ${tbl_(cfg, 'webhook_v2_cio_crm_touches_lake')} WHERE brand='Voy' GROUP BY order_id),
 sess AS (SELECT order_id, ANY_VALUE(SAFE_CAST(session_started_at AS TIMESTAMP)) AS sess_ts, ANY_VALUE(user_session_rank) AS rnk, ANY_VALUE(utm_source) AS s_us, ANY_VALUE(utm_campaign) AS s_uc FROM ${tbl_(cfg, 'webhook_v2_order_sessions_lake')} WHERE brand='Voy' GROUP BY order_id),
 cl AS (SELECT dim_customer_customer_id AS customer_id, MIN(SAFE_CAST(dim_customer_created_at AS TIMESTAMP)) AS created_ts FROM ${tbl_(cfg, 'webhook_v2_customers_lake')} GROUP BY 1),
@@ -80,46 +81,50 @@ o AS (
     AND SAFE_CAST(x.system_checkout_at AS TIMESTAMP) >= TIMESTAMP('${start} 00:00:00', 'America/Sao_Paulo')
     AND SAFE_CAST(x.system_checkout_at AS TIMESTAMP) < TIMESTAMP('${endExcl} 00:00:00', 'America/Sao_Paulo')
 ),
-capj AS (
-  SELECT o.order_id, c.step, COUNT(*) AS n, ARRAY_AGG(STRUCT(c.ts AS ts, c.us AS us, c.uc AS uc) ORDER BY c.ts DESC LIMIT 1)[OFFSET(0)] AS last
-  FROM o JOIN cap c ON c.email=o.email AND c.ts < o.t_sess GROUP BY 1,2
+ev AS (
+  SELECT o.order_id, c.ts, c.step, c.us, c.uc FROM o JOIN cap c ON c.email=o.email AND c.ts < o.t_sess
+  UNION ALL
+  SELECT o.order_id, o.created_ts, 'ck', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o WHERE o.created_ts < o.t_sess
+),
+evv AS (SELECT ev.*, IF(TIMESTAMP_DIFF(ts, LAG(ts) OVER (PARTITION BY order_id ORDER BY ts, step), MINUTE) <= 60, 0, 1) AS nv FROM ev),
+evn AS (SELECT evv.*, SUM(nv) OVER (PARTITION BY order_id ORDER BY ts, step ROWS UNBOUNDED PRECEDING) AS vis FROM evv),
+jr AS (
+  SELECT order_id, MIN(ts) AS first_cap, MAX(vis) AS n_vis, COUNTIF(step='popup') AS popup_n, COUNTIF(step='quiz') AS quiz_n,
+    COUNT(DISTINCT IF(step='popup', vis, NULL)) AS v_pop, COUNT(DISTINCT IF(step='quiz', vis, NULL)) AS v_quiz, COUNTIF(step='ck') AS v_ck,
+    ARRAY_AGG(STRUCT(step AS step, us AS us, uc AS uc) ORDER BY ts, step LIMIT 1)[OFFSET(0)] AS fe
+  FROM evn GROUP BY 1
+),
+lv AS (
+  SELECT e.order_id, CASE WHEN LOGICAL_OR(e.step='ck') THEN 'C' WHEN LOGICAL_OR(e.step='quiz') THEN 'B' ELSE 'A' END AS lv_step
+  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis=jr.n_vis GROUP BY 1
+),
+pv AS (
+  SELECT e.order_id, LOGICAL_OR(e.step='popup') AS prev_pop, LOGICAL_OR(e.step='quiz') AS prev_quiz
+  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis<jr.n_vis GROUP BY 1
 ),
 fo AS (
   SELECT q.customer_id, ARRAY_AGG(STRUCT(s.s_us AS us, s.s_uc AS uc) ORDER BY SAFE_CAST(q.system_checkout_at AS TIMESTAMP) LIMIT 1)[OFFSET(0)] AS f
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} q LEFT JOIN sess s ON s.order_id=q.order_id
   WHERE LOWER(q.brand_at_checkout)='voy' AND q.order_context IN ('acquisition','unconfirmed-acquisition') AND q.customer_id IN (SELECT customer_id FROM o) GROUP BY 1
 ),
-k AS (
-  SELECT o.*, pp.n AS popup_n, pp.last.ts AS popup_ts, pp.last.us AS popup_us, pp.last.uc AS popup_uc,
-    qq.n AS quiz_n, qq.last.ts AS quiz_ts, qq.last.us AS quiz_us, qq.last.uc AS quiz_uc,
-    fo.f.us AS fo_us, fo.f.uc AS fo_uc, IFNULL(o.created_ts < o.t_sess, FALSE) AS ckout_before
-  FROM o LEFT JOIN capj pp ON pp.order_id=o.order_id AND pp.step='popup' LEFT JOIN capj qq ON qq.order_id=o.order_id AND qq.step='quiz' LEFT JOIN fo ON fo.customer_id=o.customer_id
-),
-m AS (
-  SELECT k.*,
-    CASE WHEN ckout_before THEN 'C' WHEN email IS NULL THEN 'X' WHEN IFNULL(quiz_n,0)>0 THEN 'B' WHEN IFNULL(popup_n,0)>0 THEN 'A' ELSE 'D' END AS cls
-  FROM k
-),
-n AS (
-  SELECT m.*,
-    CASE cls WHEN 'C' THEN created_ts WHEN 'B' THEN quiz_ts WHEN 'A' THEN popup_ts END AS cap_ts,
-    CASE cls WHEN 'C' THEN fo_us WHEN 'B' THEN quiz_us WHEN 'A' THEN popup_us END AS cap_us_raw,
-    CASE cls WHEN 'C' THEN fo_uc WHEN 'B' THEN quiz_uc WHEN 'A' THEN popup_uc END AS cap_camp
-  FROM m
-),
 r AS (
-  SELECT n.*, TIMESTAMP_DIFF(t_sess, cap_ts, SECOND)/3600 AS gap_rec_h
-  FROM n
+  SELECT o.*, jr.first_cap, jr.n_vis, jr.v_pop, jr.v_quiz, jr.v_ck, lv.lv_step, IFNULL(pv.prev_pop, FALSE) AS prev_pop, IFNULL(pv.prev_quiz, FALSE) AS prev_quiz,
+    CASE WHEN IFNULL(o.created_ts < o.t_sess, FALSE) THEN 'C' WHEN o.email IS NULL THEN 'X' WHEN IFNULL(jr.quiz_n,0)>0 THEN 'B' WHEN IFNULL(jr.popup_n,0)>0 THEN 'A' ELSE 'D' END AS cls,
+    IF(jr.fe.step='ck', fo.f.us, jr.fe.us) AS cap_us_raw, IF(jr.fe.step='ck', fo.f.uc, jr.fe.uc) AS cap_camp,
+    TIMESTAMP_DIFF(o.checkout_ts, jr.first_cap, SECOND)/3600 AS gap_rec_h
+  FROM o LEFT JOIN jr ON jr.order_id=o.order_id LEFT JOIN lv ON lv.order_id=o.order_id LEFT JOIN pv ON pv.order_id=o.order_id LEFT JOIN fo ON fo.customer_id=o.customer_id
 )
 SELECT r.order_id, FORMAT_DATE('%Y-%m-%d', DATE(r.checkout_ts, 'America/Sao_Paulo')) AS data_brt, r.cls, IF(IFNULL(r.is_crm, FALSE), 1, 0) AS is_crm,
   r.promotion_code, r.gross, r.net, r.disc,
   ${normSrcSql_('r.cap_us_raw')} AS cap_src, r.cap_camp, r.gap_rec_h,
-  TIMESTAMP_DIFF(r.checkout_ts, r.cap_ts, SECOND)/3600 AS conv_gap_h, TIMESTAMP_DIFF(r.paid_ts, r.cap_ts, SECOND)/3600 AS pay_gap_h,
+  TIMESTAMP_DIFF(r.t_sess, r.first_cap, SECOND)/3600 AS conv_gap_h, TIMESTAMP_DIFF(r.paid_ts, r.first_cap, SECOND)/3600 AS pay_gap_h,
   CASE WHEN NOT IFNULL(r.is_crm, FALSE) THEN '' WHEN r.cl_h <= 24 THEN '1 clique ate 24h' WHEN r.ab_h <= 24 THEN '2 abertura ate 24h' WHEN r.en_h <= 24 THEN '3 envio ate 24h' ELSE '4 sem toque ate 24h' END AS tier,
   r.s_us, IF(LOWER(IFNULL(r.s_us,''))='crm', 1, 0) AS crm_sess, r.rnk, IF(r.sess_ts IS NOT NULL, 1, 0) AS has_sess,
   r.ed, r.ea, r.ec, IF(IFNULL(r.is_crm, FALSE), COALESCE(r.cl_c, r.ab_c, r.en_c), NULL) AS camp_attr,
   CASE WHEN r.gap_rec_h IS NULL THEN '' WHEN r.gap_rec_h <= 1 THEN '1 ate 1h' WHEN r.gap_rec_h <= 6 THEN '2 1h a 6h' WHEN r.gap_rec_h <= 24 THEN '3 6h a 24h'
-    WHEN r.gap_rec_h <= 72 THEN '4 1 a 3 dias' WHEN r.gap_rec_h <= 168 THEN '5 3 a 7 dias' WHEN r.gap_rec_h <= 336 THEN '6 7 a 14 dias' WHEN r.gap_rec_h <= 720 THEN '7 14 a 30 dias' ELSE '8 mais de 30 dias' END AS bucket
+    WHEN r.gap_rec_h <= 72 THEN '4 1 a 3 dias' WHEN r.gap_rec_h <= 168 THEN '5 3 a 7 dias' WHEN r.gap_rec_h <= 336 THEN '6 7 a 14 dias' WHEN r.gap_rec_h <= 720 THEN '7 14 a 30 dias' ELSE '8 mais de 30 dias' END AS bucket,
+  IFNULL(r.n_vis, 0) AS n_vis, IFNULL(r.v_pop, 0) AS v_pop, IFNULL(r.v_quiz, 0) AS v_quiz, IFNULL(r.v_ck, 0) AS v_ck, IFNULL(r.lv_step, '') AS lv_step,
+  IF(r.prev_pop, 1, 0) AS prev_pop, IF(r.prev_quiz, 1, 0) AS prev_quiz
 FROM r
 ORDER BY r.checkout_ts`;
 }
@@ -163,8 +168,8 @@ ex AS (SELECT l.email, COUNTIF(d.ts > UNIX_SECONDS(l.first_ts)+86400 AND d.ts <=
 fl AS (
   SELECT l.email, l.first_ts, l.f.step AS fstep,
     CASE WHEN l.f.us IN ('inf','influencer','creators','partnerships') THEN 'influencer' WHEN l.f.us IN ('ig','instagram','instagramvoy') THEN 'instagram' WHEN l.f.us IN ('tiktok','tiktokorganico') THEN 'tiktok' WHEN l.f.us IN ('fb','google','crm','(sem utm)','affiliates') THEN l.f.us ELSE 'outros' END AS usb,
-    l.fq, ck.ck_ts, cv.c, IFNULL(ex.nx,0) AS nx
-  FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN ex ON ex.email=l.email LEFT JOIN pb ON pb.email=l.email
+    l.fq, ck.ck_ts, cv.c, IFNULL(ex.nx,0) AS nx, (fa.t0 IS NULL OR fa.t0 >= UNIX_SECONDS(l.first_ts) - 3600) AS nw
+  FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN ex ON ex.email=l.email LEFT JOIN pb ON pb.email=l.email LEFT JOIN fa ON fa.email=l.email
   WHERE pb.first_buy IS NULL OR pb.first_buy >= l.first_ts
 ),
 m AS (
@@ -182,18 +187,19 @@ k AS (
   FROM m
 )
 SELECT CASE WHEN GROUPING(usb)=0 AND GROUPING(d)=1 THEN 'src' WHEN GROUPING(d)=0 AND GROUPING(usb)=0 THEN 'dia' ELSE 'land' END AS sec,
-  FORMAT_DATE('%Y-%m-%d', d) AS dia, fstep, usb, cls_l, exp_l, in_s,
+  FORMAT_DATE('%Y-%m-%d', d) AS dia, fstep, usb, cls_l, exp_l, in_s, nw,
   COUNT(*) AS leads,
   COUNTIF(e7) AS s_el7, COUNTIF(e7 AND c.cts IS NOT NULL AND dtc<=10080) AS s_cv7, COUNTIF(e7 AND c.is_crm AND dtc<=10080) AS s_cr7,
   COUNTIF(e14) AS s_el14, COUNTIF(e14 AND c.cts IS NOT NULL AND dtc<=20160) AS s_cv14, COUNTIF(e14 AND c.is_crm AND dtc<=20160) AS s_cr14,
   SUM(IF(e14 AND c.cts IS NOT NULL AND dtc<=20160, c.net, 0)) AS s_net14, SUM(IF(e14 AND c.cts IS NOT NULL AND dtc<=20160, c.disc, 0)) AS s_disc14, SUM(IF(e14 AND c.is_crm AND dtc<=20160, c.net, 0)) AS s_net14crm,
   COUNTIF(e14 AND dtc<=60) AS s_b1h, COUNTIF(e14 AND dtc<=360) AS s_b6h, COUNTIF(e14 AND dtc<=1440) AS s_b1d, COUNTIF(e14 AND dtc<=4320) AS s_b3d, COUNTIF(e14 AND dtc<=10080) AS s_b7d, COUNTIF(e14 AND dtc<=20160) AS s_b14d,
-  COUNTIF(e14 AND c.is_crm AND dtc<=1440) AS s_c1d, COUNTIF(e14 AND c.is_crm AND dtc<=4320) AS s_c3d, COUNTIF(e14 AND c.is_crm AND dtc<=10080) AS s_c7d, COUNTIF(e14 AND c.is_crm AND dtc<=20160) AS s_c14d,
+  COUNTIF(e14 AND c.is_crm AND dtc<=60) AS s_c1h, COUNTIF(e14 AND c.is_crm AND dtc<=360) AS s_c6h, COUNTIF(e14 AND c.is_crm AND dtc<=1440) AS s_c1d, COUNTIF(e14 AND c.is_crm AND dtc<=4320) AS s_c3d, COUNTIF(e14 AND c.is_crm AND dtc<=10080) AS s_c7d, COUNTIF(e14 AND c.is_crm AND dtc<=20160) AS s_c14d,
+  SUM(IF(e14 AND c.cts IS NOT NULL AND dtc<=20160, dtc, 0)) AS s_dsum14, COUNTIF(c.cts IS NOT NULL) AS s_cvall, SUM(IF(c.cts IS NOT NULL, dtc, 0)) AS s_dsumall,
   COUNTIF(in_l) AS l_leads, COUNTIF(in_l AND le14) AS l_el14, COUNTIF(in_l AND le14 AND dtl<=20160) AS l_cv14, COUNTIF(in_l AND le14 AND c.is_crm AND dtl<=20160) AS l_cr14,
   COUNTIF(in_l AND le7) AS l_el7, COUNTIF(in_l AND le7 AND dtl<=10080) AS l_cv7, COUNTIF(in_l AND le7 AND c.is_crm AND dtl<=10080) AS l_cr7,
   SUM(IF(in_l AND le14 AND dtl<=20160, c.net, 0)) AS l_net14, SUM(IF(in_l AND le14 AND dtl<=20160, c.disc, 0)) AS l_disc14
 FROM k
-GROUP BY GROUPING SETS ((fstep, usb, in_s), (d, cls_l, exp_l), (d, fstep, usb))
+GROUP BY GROUPING SETS ((fstep, usb, in_s, nw), (d, cls_l, exp_l, nw), (d, fstep, usb, nw))
 ORDER BY sec, dia, usb`;
 }
 
@@ -226,18 +232,19 @@ cv AS (
 ),
 m AS (
   SELECT DATE(l.first_ts,'America/Sao_Paulo') AS d, COALESCE(NULLIF(l.f.ucr,''),'(sem campanha)') AS uc, cv.c,
+    CASE WHEN l.f.us IN ('inf','influencer','creators','partnerships') THEN 'influencer' WHEN l.f.us IN ('ig','instagram','instagramvoy') THEN 'instagram' WHEN l.f.us IN ('tiktok','tiktokorganico') THEN 'tiktok' WHEN l.f.us IN ('fb','google','crm','(sem utm)','affiliates') THEN l.f.us ELSE 'outros' END AS usb,
     TIMESTAMP_DIFF(cv.c.cts, l.first_ts, MINUTE) AS dtc,
     l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 3 DAY) AS e3, l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 7 DAY) AS e7, l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
-  FROM leads l LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email CROSS JOIN cutoff
-  WHERE (pb.first_buy IS NULL OR pb.first_buy >= l.first_ts) AND (l.f.us IN ('fb','facebook','meta') OR l.f.ucr LIKE '%voy_wl_meta%')
+  FROM leads l LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email LEFT JOIN fa ON fa.email=l.email CROSS JOIN cutoff
+  WHERE (pb.first_buy IS NULL OR pb.first_buy >= l.first_ts) AND (fa.t0 IS NULL OR fa.t0 >= UNIX_SECONDS(l.first_ts) - 3600)
 )
-SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, uc, COUNT(*) AS leads,
+SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, usb, uc, COUNT(*) AS leads,
   COUNTIF(e3) AS el3, COUNTIF(e3 AND dtc<=4320) AS cv3, COUNTIF(e3 AND c.is_crm AND dtc<=4320) AS cr3,
   COUNTIF(e7) AS el7, COUNTIF(e7 AND dtc<=10080) AS cv7, COUNTIF(e7 AND c.is_crm AND dtc<=10080) AS cr7,
   COUNTIF(e14) AS el14, COUNTIF(e14 AND dtc<=20160) AS cv14, COUNTIF(e14 AND c.is_crm AND dtc<=20160) AS cr14,
   COUNTIF(e7 AND dtc<=60) AS t1h, COUNTIF(e7 AND dtc<=1440) AS t1d, COUNTIF(e7 AND dtc<=4320) AS t3d,
-  COUNTIF(c.cts IS NOT NULL) AS cvall, SUM(IF(c.cts IS NOT NULL, dtc, 0)) AS sdtc
-FROM m GROUP BY 1, 2 ORDER BY 1, 2`;
+  COUNTIF(c.cts IS NOT NULL) AS cvall, COUNTIF(c.is_crm) AS crall, SUM(IF(c.cts IS NOT NULL, dtc, 0)) AS sdtc
+FROM m GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
 }
 
 /**
@@ -282,8 +289,8 @@ base AS (
   SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c,
     CASE WHEN ck.ck_ts <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'C' WHEN l.fq <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'B' ELSE 'A' END AS st,
     l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
-  FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email CROSS JOIN cutoff
-  WHERE pb.first_buy IS NULL OR pb.first_buy >= l.first_ts
+  FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email LEFT JOIN fa ON fa.email=l.email CROSS JOIN cutoff
+  WHERE (pb.first_buy IS NULL OR pb.first_buy >= l.first_ts) AND (fa.t0 IS NULL OR fa.t0 >= UNIX_SECONDS(l.first_ts) - 3600)
 ),
 cnt AS (
   SELECT b.email,
@@ -300,7 +307,7 @@ k AS (
 SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, st,
   CASE WHEN t72=0 THEN '0' WHEN t72<=2 THEN '1-2' WHEN t72<=5 THEN '3-5' WHEN t72<=9 THEN '6-9' ELSE '10+' END AS bk,
   COUNT(*) AS n_all, COUNTIF(e14) AS n14, SUM(IF(e14, s14, 0)) AS s14_sum,
-  COUNTIF(e14 AND in_l) AS el, SUM(IF(e14 AND in_l, m72, 0)) AS m72_sum, SUM(IF(e14 AND in_l, a72, 0)) AS a72_sum,
+  COUNTIF(e14 AND in_l) AS el, SUM(IF(e14 AND in_l, s14, 0)) AS s14_el, SUM(IF(e14 AND in_l, m72, 0)) AS m72_sum, SUM(IF(e14 AND in_l, a72, 0)) AS a72_sum,
   COUNTIF(e14 AND in_l AND c.cts IS NOT NULL AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cv,
   COUNTIF(e14 AND in_l AND c.is_crm AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cr
 FROM k GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;

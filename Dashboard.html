@@ -41,10 +41,10 @@
   .howto { font-size:11px; color:var(--dim); margin:2px 0 8px; }
   .callout { background:var(--soft); border-left:3px solid var(--primary); padding:10px 14px; border-radius:8px; margin:14px 0 0; font-size:12.5px; }
   .callout.warn { background:var(--warn-bg); border-left-color:var(--warn); color:#5c3d0a; }
-  .kpis { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin:6px 0 14px; }
+  .kpis { display:grid; gap:10px; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); margin:6px 0 14px; overflow-x:auto; }
   .kpi { background:var(--card); border:1px solid var(--line); border-top:3px solid var(--primary); border-radius:12px; padding:12px 14px; }
   .kpi .l { color:var(--mut); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
-  .kpi .v { font-family:'Archivo', sans-serif; font-weight:800; font-size:24px; letter-spacing:-.02em; margin:6px 0 2px; color:var(--ink); }
+  .kpi { min-width:130px; } .kpi .v { font-family:'Archivo', sans-serif; font-weight:800; font-size:22px; letter-spacing:-.02em; margin:6px 0 2px; color:var(--ink); }
   .kpi .v.sm { font-size:16px; word-break:break-word; } .kpi .d { color:var(--mut); font-size:11px; }
   .kpi.hl { border-top-color:var(--accent); background:#FFF6F1; }
   .summary { background:var(--primary); color:#fff; border-radius:12px; padding:18px 22px; margin-bottom:16px; }
@@ -61,6 +61,7 @@
   th:first-child, td:first-child { text-align:left; } td:first-child { font-family:'Inter', sans-serif; font-weight:600; }
   tr.tot td { font-weight:700; background:var(--soft); }
   .tablewrap { overflow-x:auto; }
+  #tCampL td:nth-child(2), #tCampL th:nth-child(2) { text-align:left; font-family:'Inter', sans-serif; }
   table.txt td, table.txt th { text-align:left; } table.txt td { font-family:'Inter', sans-serif; } table.txt td:first-child { white-space:nowrap; }
   .tag { display:inline-block; font-family:'Inter', sans-serif; font-size:10.5px; font-weight:600; padding:1px 6px; border-radius:5px; background:var(--neg-bg); color:var(--neg); margin-left:4px; }
   .empty { color:var(--mut); font-style:italic; }
@@ -71,6 +72,13 @@
   .inforow { display:flex; justify-content:flex-end; margin-bottom:4px; }
   #tipbox { position:fixed; z-index:100; max-width:360px; background:var(--primary); color:#fff; border-radius:9px; padding:10px 12px; font-size:11.5px; line-height:1.45; box-shadow:0 8px 20px -8px rgba(25,48,30,.5); pointer-events:none; opacity:0; transition:opacity .1s; }
   #tipbox b { color:#FFC2A8; font-family:'Archivo', sans-serif; display:block; margin-bottom:3px; }
+  .verdict { display:inline-block; font-family:'Archivo', sans-serif; font-weight:800; }
+  .q { font-size:11px; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:2px; }
+  @media print {
+    .controls, nav.toc, #status, .info, #tipbox, .adv { display:none !important; }
+    body { background:#fff; } .layout { display:block; padding:0; } .chapter, .summary { break-inside:avoid; page-break-inside:avoid; }
+    .chartbox { height:260px; } .kpis { overflow:visible; }
+  }
   @media (max-width:900px){ .layout{grid-template-columns:1fr;} nav.toc{display:none;} .two{grid-template-columns:1fr;} }
 </style>
 </head>
@@ -89,33 +97,32 @@
   </div>
   <div><button class="primary" id="btnApply" onclick="load()">Aplicar</button></div>
   <details class="adv"><summary>Ajustes avançados</summary>
-    <div class="row">
-      <div><label for="utmFrom">UTM confiável desde</label><input type="date" id="utmFrom"></div>
-      <div><label for="launch">Lançamento do retargeting</label><input type="date" id="launch"></div>
-    </div>
+    <div class="row"><div><label for="utmFrom">UTM confiável desde</label><input type="date" id="utmFrom"></div></div>
   </details>
   <div style="margin-left:auto; display:flex; gap:6px; flex-wrap:wrap;">
-    <button class="secondary" id="btnCsvO" onclick="csv('aquisicoes')">Baixar CSV diário de aquisições</button>
-    <button class="secondary" id="btnCsvL" onclick="csv('leads')">Baixar CSV diário de leads</button>
+    <button class="secondary" onclick="window.print()">Imprimir / PDF</button>
+    <button class="secondary" id="btnCsvO" onclick="csv('aquisicoes')">CSV diário de aquisições</button>
+    <button class="secondary" id="btnCsvL" onclick="csv('leads')">CSV diário de leads</button>
     <button class="ghost" id="btnRefresh" onclick="refresh()">Atualizar dados</button>
   </div>
 </div>
 <div id="status">Carregando...</div>
 
 <div class="layout">
-  <nav class="toc" id="toc">
+  <nav class="toc">
     <a href="#resumo">Resumo</a>
     <a href="#c1">1. Peso do CRM nas vendas</a>
-    <a href="#c2">2. Onde o email é capturado</a>
-    <a href="#c3">3. Quem compra com cupom CRM</a>
-    <a href="#cS">4. Disparos por etapa</a>
-    <a href="#c4">5. Velocidade da compra</a>
-    <a href="#c5">6. Canais de origem</a>
-    <a href="#c6">7. Campanhas</a>
-    <a href="#cM">8. Campanhas de lead (Meta)</a>
-    <a href="#c7">9. O email está perto da compra?</a>
-    <a href="#c8">10. Próximo passo</a>
-    <a href="#c9">Como ler os números</a>
+    <a href="#c2">2. Leads novos no período</a>
+    <a href="#c3">3. De onde vêm os leads</a>
+    <a href="#c4">4. Custo do lead na Meta</a>
+    <a href="#c5">5. Tempo até a compra</a>
+    <a href="#c6">6. Jornada de capturas</a>
+    <a href="#c7">7. Etapa antes da compra</a>
+    <a href="#c8">8. Onde o CRM recupera mais</a>
+    <a href="#c9">9. Disparos por etapa</a>
+    <a href="#c10">10. O email está perto da compra?</a>
+    <a href="#c11">11. Próximo passo</a>
+    <a href="#c12">Glossário</a>
   </nav>
 
   <main>
@@ -124,134 +131,142 @@
     <section class="summary" id="resumo"><h2>Resumo do período</h2><div class="kpis dark" id="sumCards"></div></section>
 
     <section class="chapter" id="c1">
-      <div class="num">1. Peso do CRM nas vendas</div>
-      <h2 id="h1"></h2><div class="kpis" id="k1"></div>
-            <div class="howto">Barras: aquisições por dia (laranja = com cupom de CRM, verde-claro = demais). Linha: % das aquisições do dia com cupom de CRM (eixo da direita).</div>
+      <h2>1. Peso do CRM nas vendas</h2>
+      <div class="kpis" id="k1"></div>
+      <div class="howto">Aquisições por dia: laranja = com cupom de CRM, verde-claro = demais. Linha = % com cupom de CRM (eixo da direita).</div>
       <div class="chartbox"><canvas id="cDaily"></canvas></div>
     </section>
 
     <section class="chapter" id="c2">
-      <div class="num">2. Onde o email é capturado</div>
-      <h2 id="h2"></h2><div class="kpis" id="k2"></div>
-      <div class="howto">Cada cliente aparece uma única vez, na etapa mais avançada em que deixou o email antes de entrar no site para comprar.</div>
-      <div class="chartbox short"><canvas id="cClass"></canvas></div>
-      <div class="foot" id="n2"></div>
+      <div class="q">Quantos leads foram capturados pela primeira vez no período?</div>
+      <h2 id="h2">2. Leads novos no período</h2>
+      <div class="kpis" id="k2"></div>
+      <div class="two">
+        <div><h3>Leads por dia</h3><div class="howto">Leads novos pela etapa da primeira captura e emails que já estavam na base.</div><div class="chartbox short"><canvas id="cNew"></canvas></div></div>
+        <div><h3>Leads novos por etapa da primeira captura</h3><div class="chartbox short"><canvas id="cNewStep"></canvas></div></div>
+      </div>
     </section>
 
     <section class="chapter" id="c3">
-      <div class="num">3. Quem compra com cupom CRM</div>
-      <h2 id="h3"></h2><div class="kpis" id="k3"></div>
+      <div class="q">Qual é a maior fonte geradora de lead?</div>
+      <h2 id="h3">3. De onde vêm os leads novos</h2>
+      <div class="kpis" id="k3"></div>
       <div class="two">
-        <div><h3>De cada 100 compradores da etapa, quantos usaram cupom CRM</h3><div class="chartbox short"><canvas id="cShare"></canvas></div></div>
+        <div><h3>Leads novos por source</h3><div class="chartbox short"><canvas id="cSrcVol"></canvas></div></div>
+        <div><h3>Compra em até 14 dias por source</h3><div class="howto">De cada 100 leads novos com 14 dias completos. Cinza = menos de 500 leads.</div><div class="chartbox short"><canvas id="cSrc"></canvas></div></div>
+      </div>
+      <h3>Campanhas que mais geram leads novos (top 15)</h3>
+      <div class="tablewrap" id="tCampL"></div>
+    </section>
+
+    <section class="chapter" id="c4">
+      <div class="q">Qual o custo por novo lead na Meta? A ação de leads compensa?</div>
+      <h2>4. Custo do lead novo na Meta: campanhas de lead x demais</h2>
+      <div class="howto"><label><input type="checkbox" id="mSameDays" checked onchange="window.__renderM()"> Comparar só nos dias em que as campanhas de lead tiveram custo</label></div>
+      <div class="kpis" id="kM"></div>
+      <div class="tablewrap" id="tMcmp"></div>
+      <div class="two" style="margin-top:14px">
+        <div><h3>Custo por lead novo por dia</h3><div class="chartbox short"><canvas id="cMcpl"></canvas></div></div>
+        <div><h3>Conversão dos leads em compra</h3><div class="howto">De cada 100 leads novos, quantos compraram em até 3 e 7 dias.</div><div class="chartbox short"><canvas id="cMconv"></canvas></div></div>
+      </div>
+      <h3>Por campanha</h3>
+      <div class="tablewrap" id="tM"></div>
+      <div class="foot" id="nM"></div>
+    </section>
+
+    <section class="chapter" id="c5">
+      <div class="q">Qual é a média de tempo para os leads converterem?</div>
+      <h2>5. Tempo da primeira captura até a compra</h2>
+      <div class="kpis" id="k5"></div>
+      <div class="two">
+        <div><h3>Dos leads novos que compraram em até 14 dias, quantos já tinham comprado em cada momento</h3><div class="chartbox short"><canvas id="cCum"></canvas></div></div>
+        <div><h3>Tempo da primeira captura até a compra, por etapa do comprador</h3><div class="chartbox short"><canvas id="cTime"></canvas></div></div>
+      </div>
+    </section>
+
+    <section class="chapter" id="c6">
+      <div class="q">Quantas vezes o cliente deixa o email até converter? E onde?</div>
+      <h2>6. Jornada de capturas até a compra</h2>
+      <div class="kpis" id="k6"></div>
+      <div class="two">
+        <div><h3>Quantas capturas o comprador teve antes da compra</h3><div class="howto">Linha tracejada = média. Captura = visita em que deixou o email em uma etapa.</div><div class="chartbox short"><canvas id="cHist"></canvas></div></div>
+        <div><h3>Capturas por etapa: quantas vezes em cada uma</h3><div class="howto">% dos compradores com 0, 1, 2 ou 3+ visitas com captura em cada etapa.</div><div class="chartbox short"><canvas id="cStepHist"></canvas></div></div>
+      </div>
+      <h3>Última visita antes da compra: o que o cliente já tinha feito antes</h3>
+      <div class="tablewrap" id="tPrev"></div>
+      <div class="two" style="margin-top:14px">
+        <div><h3>Em qual visita ao site a compra aconteceu</h3><div class="chartbox short"><canvas id="cRnk"></canvas></div></div>
+        <div><h3>Visitas antes da compra x compra com cupom CRM</h3><div class="chartbox short"><canvas id="cHistCrm"></canvas></div></div>
+      </div>
+    </section>
+
+    <section class="chapter" id="c7">
+      <div class="q">Até qual etapa os clientes chegam antes da sessão de compra?</div>
+      <h2 id="h7">7. Etapa alcançada antes da sessão de compra</h2>
+      <div class="kpis" id="k7"></div>
+      <div class="chartbox short"><canvas id="cLv"></canvas></div>
+      <div class="foot" id="n7"></div>
+    </section>
+
+    <section class="chapter" id="c8">
+      <div class="q">Em qual etapa o CRM consegue o maior recupero?</div>
+      <h2 id="h8">8. Onde o CRM recupera mais</h2>
+      <div class="kpis" id="k8"></div>
+      <div class="two">
+        <div><h3>De cada 100 compradores, quantos compraram com cupom CRM</h3><div class="chartbox short"><canvas id="cShare"></canvas></div></div>
         <div><h3>De onde vêm as vendas com cupom CRM</h3><div class="chartbox short"><canvas id="cCrmMix"></canvas></div></div>
       </div>
     </section>
 
-    <section class="chapter" id="cS">
-      <h2>4. Disparos de CRM por etapa: lead mais quente ou mais comunicação?</h2>
+    <section class="chapter" id="c9">
+      <h2>9. Disparos de CRM por etapa: lead mais quente ou mais comunicação?</h2>
       <div class="kpis" id="kS"></div>
       <div class="two">
-        <div><h3>Disparos por lead nas primeiras 72h</h3><div class="howto">Média por lead que ainda não tinha comprado: emails entregues e WhatsApp/SMS enviados.</div><div class="chartbox short"><canvas id="cSavg"></canvas></div></div>
-        <div><h3>Compra com cupom CRM por quantidade de disparos</h3><div class="howto">De cada 100 leads, quantos compraram com cupom CRM entre 3 e 14 dias, pelo nº de disparos nas primeiras 72h.</div><div class="chartbox short"><canvas id="cSline"></canvas></div></div>
+        <div><h3>Disparos por lead</h3><div class="howto">Mesma base dos cards: leads novos que não compraram nas primeiras 72h.</div><div class="chartbox short"><canvas id="cSavg"></canvas></div></div>
+        <div><h3>Compra com cupom CRM por quantidade de disparos nas 72h</h3><div class="chartbox short"><canvas id="cSline"></canvas></div></div>
       </div>
       <h3>Quanto da diferença entre questionário e pop-up vem dos disparos</h3>
-      <div class="howto">Barra do meio: conversão do pop-up se esses leads recebessem a mesma quantidade de disparos que os do questionário.</div>
       <div class="chartbox short"><canvas id="cSdec"></canvas></div>
       <h3>Leads e compra com cupom CRM por etapa e nº de disparos</h3>
       <div class="tablewrap" id="tS"></div>
       <div class="foot" id="nS"></div>
     </section>
 
-    <section class="chapter" id="c4">
-      <div class="num">4. Velocidade da compra</div>
-      <h2 id="h4"></h2><div class="kpis" id="k4"></div>
+    <section class="chapter" id="c10">
+      <h2>10. O email está perto da compra?</h2>
+      <div class="kpis" id="k10"></div>
       <div class="two">
-        <div><h3>Dos leads que compraram em até 14 dias, quantos já tinham comprado em cada momento</h3>
-          <div class="howto">Leads capturados no período, acompanhados por 14 dias.</div><div class="chartbox short"><canvas id="cCum"></canvas></div></div>
-        <div><h3>Tempo entre a captura do email e a visita de compra</h3>
-          <div class="howto">Compradores do período, por etapa de captura.</div><div class="chartbox short"><canvas id="cTime"></canvas></div></div>
+        <div><h3>Último contato com email nas 24h antes da compra (vendas com cupom CRM)</h3><div class="chartbox short"><canvas id="cTier"></canvas></div></div>
+        <div><h3>Quem recebeu email compra mais? (leads novos do questionário)</h3><div class="chartbox short"><canvas id="cExp"></canvas></div></div>
       </div>
-    </section>
-
-    <section class="chapter" id="c5">
-      <div class="num">5. Canais de origem</div>
-      <h2 id="h5"></h2><div class="kpis" id="k5"></div>
-      <div class="howto">De cada 100 leads capturados por canal (utm_source da captura), quantos compraram com cupom CRM em até 14 dias. Canais marcados com "poucos dados" têm menos de 500 leads: o número pode mudar bastante.</div>
-      <div class="chartbox"><canvas id="cSrc"></canvas></div>
-      <div class="tablewrap" id="tSrc"></div>
-    </section>
-
-    <section class="chapter" id="c6">
-      <div class="num">6. Campanhas</div>
-      <h2 id="h6"></h2><div class="kpis" id="k6"></div>
-      <h3>Campanhas de mídia que trouxeram os compradores (top 10)</h3>
-      <div class="howto">UTM campaign do momento em que o email foi capturado. "(sem utm)" = captura sem campanha registrada.</div>
-      <div class="tablewrap" id="tCamp"></div>
       <h3>Campanhas de CRM que ganham a venda (top 10)</h3>
-      <div class="howto">Para cada venda com cupom CRM, a campanha de email com o último clique (ou, sem clique, a última abertura; sem abertura, o último envio) em até 30 dias.</div>
       <div class="chartbox tall"><canvas id="cAttr"></canvas></div>
+      <div class="foot">Quem recebe email já é diferente de quem não recebe: a diferença mostra o máximo que o CRM pode gerar, não o efeito real.</div>
     </section>
 
-    <section class="chapter" id="cM">
-      <h2>8. Campanhas de lead na Meta x demais campanhas da Meta</h2>
-      <div class="howto"><label><input type="checkbox" id="mSameDays" checked onchange="window.__renderM()"> Comparar só nos dias em que as campanhas de lead tiveram custo</label></div>
-      <div class="kpis" id="kM"></div>
-      <div class="tablewrap" id="tMcmp"></div>
-      <div class="two" style="margin-top:14px">
-        <div><h3>Custo por lead por dia</h3><div class="howto">Custo com imposto ÷ emails novos capturados no dia.</div><div class="chartbox short"><canvas id="cMcpl"></canvas></div></div>
-        <div><h3>Conversão dos leads em compra</h3><div class="howto">De cada 100 leads, quantos compraram em até 3 e 7 dias.</div><div class="chartbox short"><canvas id="cMconv"></canvas></div></div>
-      </div>
-      <h3>Quando os leads que compram em até 7 dias fazem a compra</h3>
-      <div class="chartbox short"><canvas id="cMtime"></canvas></div>
-      <h3>Por campanha</h3>
-      <div class="tablewrap" id="tM"></div>
-      <div class="foot" id="nM"></div>
+    <section class="chapter" id="c11">
+      <h2>11. Próximo passo: medir o efeito real do CRM</h2>
+      <div class="kpis" id="k11"></div>
+      <div class="tablewrap" id="t11"></div>
     </section>
 
-    <section class="chapter" id="c7">
-      <div class="num">7. O email está perto da compra?</div>
-      <h2 id="h7"></h2><div class="kpis" id="k7"></div>
-      <h3>Último contato com email nas 24h antes da compra (vendas com cupom CRM)</h3>
-      <div class="howto">Clique = sinal mais forte de que o email puxou a compra. "Sem contato" = a pessoa comprou com o cupom sem ter recebido email naquele dia.</div>
-      <div class="chartbox short"><canvas id="cTier"></canvas></div>
-      <div class="two">
-        <div><h3>Quem recebeu email compra mais? (leads do questionário)</h3>
-          <div class="howto">De cada 100 leads do questionário, quantos compraram em até 14 dias, separando quem recebeu email entre 1 e 8 dias depois da captura.</div>
-          <div class="chartbox short"><canvas id="cExp"></canvas></div></div>
-        <div><h3>Antes e depois do retargeting</h3>
-          <div class="howto" id="ppNote"></div>
-          <div class="chartbox short"><canvas id="cPP"></canvas></div></div>
-      </div>
-      <div class="foot" id="n7"></div>
-    </section>
-
-    <section class="chapter" id="c8">
-      <div class="num">8. Próximo passo</div>
-      <h2 id="h8"></h2><div class="kpis" id="k8"></div>
-      <div class="tablewrap" id="t8"></div>
-    </section>
-
-    <section class="chapter" id="c9">
-      <div class="num">Como ler os números</div>
+    <section class="chapter" id="c12">
       <h2>Glossário</h2>
       <div class="tablewrap" id="gloss"></div>
     </section>
   </main>
 </div>
-
 <script>
 (function () {
   'use strict';
   var STEPS = ['A', 'B', 'C', 'D', 'X'];
   var NAME = { A: 'Pop-up', B: 'Questionário', C: 'Checkout', D: 'Sem captura anterior', X: 'Sem email' };
-  var NAME_LONG = { A: 'só no pop-up', B: 'no questionário', C: 'no checkout (conta criada antes)', D: 'sem captura anterior à compra', X: 'sem email vinculado' };
-  var COL = { A: '#2F6F8F', B: '#19301E', C: '#D4A04A', D: '#94A0A0', X: '#CFD6D2', crm: '#FF8A5B', non: '#CFE0D3', line: '#C0483C', alt: '#2F6F8F' };
+  var COL = { A: '#2F6F8F', B: '#19301E', C: '#D4A04A', D: '#94A0A0', X: '#CFD6D2', crm: '#FF8A5B', non: '#CFE0D3', line: '#C0483C', base: '#C9C6BC' };
   var TIERS = ['1 clique ate 24h', '2 abertura ate 24h', '3 envio ate 24h', '4 sem toque ate 24h'];
   var TIER_L = ['Clicou no email', 'Abriu o email', 'Só recebeu', 'Sem contato'];
   var TIER_C = ['#19301E', '#6B8E5A', '#D4A04A', '#E6E4DD'];
   var BK = ['1 ate 1h', '2 1h a 6h', '3 6h a 24h', '4 1 a 3 dias', '5 3 a 7 dias', '6 7 a 14 dias', '7 14 a 30 dias', '8 mais de 30 dias'];
-  var BK_L = ['até 1h', '1h a 6h', '6h a 24h', '1 a 3 dias', '3 a 7 dias', '7 a 14 dias', '14 a 30 dias', 'mais de 30 dias'];
-  var SRC = ['fb', 'google', 'instagram', 'influencer', 'tiktok', 'affiliates', 'crm', '(sem utm)', 'outros'];
+  var BK_L = ['até 1h', '1h a 6h', '6h a 24h', '1 a 3 dias', '3 a 7 dias', '7 a 14 dias', '14 a 30 dias', '+30 dias'];
   var SRC_L = { fb: 'Meta (fb)', google: 'Google', instagram: 'Instagram', influencer: 'Influenciadores', tiktok: 'TikTok', affiliates: 'Afiliados', crm: 'CRM (email)', '(sem utm)': 'Sem UTM', outros: 'Outros' };
   var MIN_N = 500;
   var D = null, state = null, charts = {};
@@ -259,18 +274,20 @@
   var nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
   function fi(x) { return nf0.format(Math.round(x || 0)); }
   function fp(x, d) { d = d === undefined ? 0 : d; return new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: d, maximumFractionDigits: d }).format(x || 0); }
-  function f1(x) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(x || 0); }
-  function per100(x) { var v = (x || 0) * 100; if (v >= 10) return fi(v); if (v >= 1 || v === 0) return f1(v); return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(v); }
+  function f1(x) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(x || 0); }
+  function per100(x) { var v = (x || 0) * 100; if (v >= 10) return fi(v); if (v >= 1 || v === 0) return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(v); return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(v); }
+  function brl(v) { return v === null || v === undefined || !isFinite(v) ? 'n/d' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v); }
+  function brl0(v) { return v === null || v === undefined || !isFinite(v) ? 'n/d' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v); }
   function dbr(iso) { var p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
   function div(a, b) { return b ? a / b : 0; }
   function $(id) { return document.getElementById(id); }
   function addDays(iso, n) { var d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
-  function hours(h) { if (h === null || h === undefined || isNaN(h)) return 'n/d'; if (h < 1) return 'menos de 1 hora'; if (h < 48) return fi(h) + (Math.round(h) === 1 ? ' hora' : ' horas'); return f1(h / 24) + ' dias'; }
+  function hours(h) { if (h === null || h === undefined || isNaN(h)) return 'n/d'; if (h < 1) return 'menos de 1h'; if (h < 48) return fi(h) + 'h'; return f1(h / 24) + ' dias'; }
   function status(msg, cls) { var s = $('status'); s.textContent = msg; s.className = cls || ''; }
   function busy(b) { ['btnApply', 'btnRefresh', 'btnCsvO', 'btnCsvL'].forEach(function (i) { $(i).disabled = b; }); }
   function set(id, html) { $(id).innerHTML = html; }
-  function cards(id, arr) { set(id, arr.map(function (k) { return '<div class="kpi' + (k[3] ? ' hl' : '') + '"><div class="l">' + k[0] + '</div><div class="v' + (String(k[1]).length > 16 ? ' sm' : '') + '">' + k[1] + '</div><div class="d">' + (k[2] || '') + '</div></div>'; }).join('')); }
-  function tbl(head, rows) { return '<table class="txt"><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>'; }
+  function cards(id, arr) { set(id, arr.map(function (k) { return '<div class="kpi' + (k[3] ? ' hl' : '') + '"><div class="l">' + k[0] + '</div><div class="v' + (String(k[1]).length > 14 ? ' sm' : '') + '">' + k[1] + '</div><div class="d">' + (k[2] || '') + '</div></div>'; }).join('')); }
+  function tbl(head, rows, cls, totIdx) { return '<table' + (cls ? ' class="' + cls + '"' : '') + '><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r, i) { return '<tr' + (i === totIdx ? ' class="tot"' : '') + '>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>'; }
 
   Chart.defaults.font.family = "'Inter', system-ui, sans-serif"; Chart.defaults.font.size = 11; Chart.defaults.locale = 'pt-BR'; Chart.defaults.color = '#5E6B6A'; Chart.defaults.borderColor = '#EFEEE8';
   Chart.defaults.plugins.tooltip.backgroundColor = '#19301E'; Chart.defaults.plugins.tooltip.padding = 9; Chart.defaults.plugins.tooltip.cornerRadius = 9; Chart.defaults.elements.bar.borderRadius = 4;
@@ -281,17 +298,22 @@
     charts[id] = new Chart($(id).getContext('2d'), cfg);
   }
   function pctTicks(d) { return { callback: function (v) { return fp(v, d || 0); } }; }
-  // rótulo do valor na ponta da barra
   var labels = { id: 'labels', afterDatasetsDraw: function (c, a, opt) {
     if (!opt || !opt.fmt) return; var ctx = c.ctx; ctx.save(); ctx.font = "600 10.5px 'JetBrains Mono', monospace"; ctx.fillStyle = '#182223';
     c.data.datasets.forEach(function (ds, di) { var m = c.getDatasetMeta(di); if (m.hidden) return;
-      m.data.forEach(function (el, i) { var v = ds.data[i]; if (v === null || v === undefined) return; var t = opt.fmt(v, i, di);
+      m.data.forEach(function (el, i) { var v = ds.data[i]; if (v === null || v === undefined) return; var t = opt.fmt(v, i, di); if (!t) return;
         if (c.options.indexAxis === 'y') { ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(t, el.x + 6, el.y); }
         else { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(t, el.x, el.y - 4); } }); });
     ctx.restore(); } };
+  // linha vertical da média (histograma)
+  var meanLine = { id: 'meanLine', afterDatasetsDraw: function (c, a, opt) {
+    if (!opt || opt.value === undefined || opt.value === null) return; var x = c.scales.x, y = c.scales.y, v = opt.value, i0 = Math.floor(v), i1 = Math.min(i0 + 1, c.data.labels.length - 1);
+    var p0 = x.getPixelForValue(i0), p1 = x.getPixelForValue(i1), px = p0 + (p1 - p0) * (v - i0), ctx = c.ctx;
+    ctx.save(); ctx.strokeStyle = '#C0483C'; ctx.lineWidth = 2; ctx.setLineDash([6, 4]); ctx.beginPath(); ctx.moveTo(px, y.top); ctx.lineTo(px, y.bottom); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = '#C0483C'; ctx.font = "700 11px 'JetBrains Mono', monospace"; ctx.textAlign = 'left'; ctx.fillText(opt.text, px + 6, y.top + 12); ctx.restore(); } };
 
   // ---------- carga
-  function params() { return { start: $('start').value, end: $('end').value, utmFrom: $('utmFrom').value, launch: $('launch').value, margin: 50 }; }
+  function params() { return { start: $('start').value, end: $('end').value, utmFrom: $('utmFrom').value, launch: '2026-10-02', margin: 50 }; }
   window.preset = function (k) {
     var yest = addDays(state.today, -1); $('end').value = yest;
     if (k === '7') $('start').value = addDays(yest, -6);
@@ -307,39 +329,26 @@
   }
   window.load = load;
   window.refresh = function () {
-    if (!confirm('Recarregar o histórico completo da Nekt? Leva de 1 a 3 minutos.')) return;
+    if (!confirm('Recarregar o histórico completo da Nekt? Leva alguns minutos.')) return;
     busy(true); status('Atualizando os dados na Nekt. Não feche esta página...');
     google.script.run.withSuccessHandler(function (r) { status(r.message, 'ok'); busy(false); load(); })
       .withFailureHandler(function (e) { busy(false); status(e.message, 'err'); }).refreshData();
   };
 
-  // ---------- cálculos de apoio
   function cls() { var o = {}; STEPS.forEach(function (k) { var c = D.O.classes[k]; o[k] = { n: c.n, crm: c.crm, share: div(c.crm, c.n) }; }); return o; }
-  function land(k, e) { return D.L.land[k + '|' + e] || {}; }
-  function sumLand(from, to, cols, only) {
-    var o = {}; cols.forEach(function (c) { o[c] = 0; });
-    (D.L.landRows || []).forEach(function (r) { if (r.dia >= from && r.dia <= to && (!only || r.cls_l === only)) cols.forEach(function (c) { o[c] += Number(r[c]) || 0; }); });
-    return o;
-  }
-  function srcRows() {
-    return SRC.map(function (u) { var s = D.L.src[u] || {}; return { u: u, n: s.s_el14 || 0, p: div(s.s_cr14 || 0, s.s_el14 || 0), pAll: div(s.s_cv14 || 0, s.s_el14 || 0) }; })
-      .filter(function (r) { return r.n > 0; });
-  }
-  function topStep(c, keys, field) { return keys.slice().sort(function (a, b) { return c[b][field] - c[a][field]; })[0]; }
 
   // ---------- render
   function render() {
-    var m = D.meta, c = cls(), O = D.O, N = O.total;
+    var m = D.meta, c = cls(), O = D.O, N = O.total, J = O.journey;
     var crmT = STEPS.reduce(function (a, k) { return a + c[k].crm; }, 0), crmShare = div(crmT, N);
     $('sub').textContent = 'Aquisições confirmadas de ' + dbr(m.start) + ' a ' + dbr(m.end) + (m.lastRefresh ? ' | dados atualizados em ' + m.lastRefresh : '');
     var w = [];
-    if (m.start < m.dataStart) w.push('Histórico de captura começa em ' + dbr(m.dataStart) + '.');
-    if (m.end > addDays(m.today, -15)) w.push('Leads dos últimos 14 dias ainda não entram nas taxas de conversão (blocos 4, 5, 6, 8 e 9).');
+    if (m.start < m.dataStart) w.push('O histórico de captura começa em ' + dbr(m.dataStart) + '.');
+    if (m.end > addDays(m.today, -15)) w.push('Leads capturados nos últimos 14 dias ainda não completaram a janela de acompanhamento e ficam fora das taxas de conversão em 14 dias.');
     set('warn', w.map(function (x) { return '<div class="callout warn" style="margin:0 0 12px">' + x + '</div>'; }).join(''));
 
     // ---- 1
-    set('h1', '1. Peso do CRM nas vendas');
-        var nDays = Object.keys(D.dailyOrders.reduce(function (a, r) { a[r[0]] = 1; return a; }, {})).length;
+    var nDays = Object.keys(D.dailyOrders.reduce(function (a, r) { a[r[0]] = 1; return a; }, {})).length;
     cards('k1', [['Aquisições', fi(N), 'confirmadas no período'], ['Com cupom CRM', fi(crmT), 'vendas via CRM', 1], ['% com cupom CRM', fp(crmShare, 1), 'do total', 1], ['Média por dia', fi(div(N, nDays)), fi(div(crmT, nDays)) + ' com cupom CRM']]);
     var days = {}; D.dailyOrders.forEach(function (r) { var x = days[r[0]] = days[r[0]] || { n: 0, crm: 0 }; x.n += r[3]; x.crm += r[4]; });
     var ks = Object.keys(days).sort();
@@ -347,124 +356,221 @@
       { type: 'line', label: '% com cupom CRM', data: ks.map(function (k) { return div(days[k].crm, days[k].n); }), borderColor: COL.line, backgroundColor: COL.line, yAxisID: 'y2', tension: .3, pointRadius: 0, borderWidth: 2 },
       { type: 'bar', label: 'Com cupom CRM', data: ks.map(function (k) { return days[k].crm; }), backgroundColor: COL.crm, stack: 's' },
       { type: 'bar', label: 'Demais aquisições', data: ks.map(function (k) { return days[k].n - days[k].crm; }), backgroundColor: COL.non, stack: 's' }] },
-      options: { interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, title: { display: true, text: 'Aquisições' } }, y2: { position: 'right', min: 0, grid: { drawOnChartArea: false }, ticks: pctTicks() } },
+      options: { interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true }, y2: { position: 'right', min: 0, grid: { drawOnChartArea: false }, ticks: pctTicks() } },
         plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + (x.dataset.yAxisID === 'y2' ? fp(x.raw, 1) : fi(x.raw)); } } } } } });
 
-    // ---- 2
-    var cap = ['A', 'B', 'C'].reduce(function (a, k) { return a + c[k].n; }, 0), top2 = topStep(c, ['A', 'B', 'C'], 'n');
-    set('h2', '2. Onde o comprador deixou o email antes de comprar');
-    cards('k2', [['Já estavam na base', fp(div(cap, N)), fi(cap) + ' compradores', 1], ['Questionário', fp(div(c.B.n, N)), fi(c.B.n)], ['Checkout', fp(div(c.C.n, N)), fi(c.C.n)], ['Só pop-up', fp(div(c.A.n, N)), fi(c.A.n)], ['Sem captura anterior*', fp(div(c.D.n + c.X.n, N)), fi(c.D.n + c.X.n)]]);
-    chart('cClass', { type: 'bar', plugins: [labels], data: { labels: STEPS.map(function (k) { return NAME[k]; }), datasets: [{ data: STEPS.map(function (k) { return c[k].n; }), backgroundColor: STEPS.map(function (k) { return COL[k]; }) }] },
-      options: { indexAxis: 'y', layout: { padding: { right: 90 } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return fi(v) + ' (' + fp(div(v, N)) + ')'; } }, tooltip: { callbacks: { label: function (x) { return fi(x.raw) + ' compradores'; } } } }, scales: { x: { display: false }, y: { grid: { display: false } } } } });
-    set('n2', '* Email deixado na própria visita da compra ou antes de ' + dbr(m.dataStart) + ' (início do histórico).');
+    // ---- 2 leads novos
+    var nb = {}, nNew = 0, nBase = 0, nStep = { popup: 0, quiz: 0 };
+    (D.NB || []).forEach(function (r) { var x = nb[r[0]] = nb[r[0]] || { popup: 0, quiz: 0, base: 0 }; if (r[1] === 1) { x[r[2]] = (x[r[2]] || 0) + r[3]; nNew += r[3]; nStep[r[2]] = (nStep[r[2]] || 0) + r[3]; } else { x.base += r[3]; nBase += r[3]; } });
+    var nk = Object.keys(nb).sort(), nd = nk.length || 1;
+    cards('k2', [['Leads novos', fi(nNew), 'primeira captura no período', 1], ['Média por dia', fi(nNew / nd), 'leads novos'], ['Pela primeira vez no questionário', fp(div(nStep.quiz, nNew)), fi(nStep.quiz) + ' leads'], ['Pela primeira vez no pop-up', fp(div(nStep.popup, nNew)), fi(nStep.popup) + ' leads'], ['Já estavam na base', fi(nBase), fp(div(nBase, nNew + nBase)) + ' das capturas: não contam como novos']]);
+    chart('cNew', { type: 'bar', data: { labels: nk.map(function (k) { return dbr(k).slice(0, 5); }), datasets: [
+      { label: 'Novos: questionário', backgroundColor: COL.B, data: nk.map(function (k) { return nb[k].quiz; }), stack: 's' },
+      { label: 'Novos: pop-up', backgroundColor: COL.A, data: nk.map(function (k) { return nb[k].popup; }), stack: 's' },
+      { label: 'Já na base', backgroundColor: COL.base, data: nk.map(function (k) { return nb[k].base; }), stack: 's' }] },
+      options: { interaction: { mode: 'index', intersect: false }, scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true } } } });
+    chart('cNewStep', { type: 'doughnut', data: { labels: ['Questionário', 'Pop-up'], datasets: [{ data: [nStep.quiz, nStep.popup], backgroundColor: [COL.B, COL.A] }] },
+      options: { cutout: '58%', plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: function (x) { return x.label + ': ' + fi(x.raw) + ' (' + fp(div(x.raw, nNew)) + ')'; } } } } } });
 
-    // ---- 3
-    var top3 = topStep(c, ['A', 'B', 'C'], 'share');
-    set('h3', '3. Quem compra com cupom CRM');
-        cards('k3', [['Vendas CRM vindas do questionário', fp(div(c.B.crm, crmT)), fi(c.B.crm) + ' vendas', 1], ['Questionário', per100(c.B.share) + ' em 100', 'compradores usam cupom CRM'], ['Checkout', per100(c.C.share) + ' em 100', 'compradores usam cupom CRM'], ['Pop-up', per100(c.A.share) + ' em 100', 'base pequena: ' + fi(c.A.n) + ' compradores'], ['Sem captura anterior', per100(c.D.share) + ' em 100', 'compradores usam cupom CRM']]);
-    chart('cShare', { type: 'bar', plugins: [labels], data: { labels: ['A', 'B', 'C', 'D'].map(function (k) { return NAME[k]; }), datasets: [{ data: ['A', 'B', 'C', 'D'].map(function (k) { return c[k].share; }), backgroundColor: ['A', 'B', 'C', 'D'].map(function (k) { return COL[k]; }) }] },
-      options: { layout: { padding: { top: 20 } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return per100(v) + ' em 100'; } }, tooltip: { callbacks: { label: function (x) { var k = ['A', 'B', 'C', 'D'][x.dataIndex]; return fi(c[k].crm) + ' de ' + fi(c[k].n) + ' compradores'; } } } }, scales: { y: { ticks: pctTicks(), grid: { color: '#f1f3f4' } }, x: { grid: { display: false } } } } });
-    chart('cCrmMix', { type: 'doughnut', data: { labels: STEPS.map(function (k) { return NAME[k]; }), datasets: [{ data: STEPS.map(function (k) { return c[k].crm; }), backgroundColor: STEPS.map(function (k) { return COL[k]; }) }] },
-      options: { cutout: '55%', plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: function (x) { return x.label + ': ' + fi(x.raw) + ' (' + fp(div(x.raw, crmT)) + ')'; } } } } } });
+    renderSources();
+    renderM();
 
-    // ---- 4
-    var b = D.L.buckets || {}, has4 = (b.s_b14d || 0) > 0;
-    var d1 = div(b.s_b1d, b.s_b14d), d7 = div(b.s_b7d, b.s_b14d), c1 = div(b.s_c1d, b.s_c14d), c7 = div(b.s_c7d, b.s_c14d);
-    set('h4', '5. Velocidade da compra depois da captura');
-    cards('k4', has4 ? [['Compram em até 24h', fp(d1), 'dos leads que compraram em 14 dias', 1], ['Compram em até 7 dias', fp(d7), 'dos leads que compraram em 14 dias'], ['Cupom CRM em até 24h', fp(c1), 'das vendas CRM em 14 dias'], ['Metade do questionário compra em', hours(D.O.time.B.q.p50), 'depois da captura', 1]] : [['Sem dados', 'n/d', 'escolha um período que termine 15 dias antes de hoje']]);
+    // ---- 5 tempo
+    var b = D.L.buckets || {}, has5 = (b.s_b14d || 0) > 0;
+    var d1 = div(b.s_b1d, b.s_b14d), d7 = div(b.s_b7d, b.s_b14d), avgAll = div(b.s_dsumall, b.s_cvall) / 1440;
+    var steps5 = [['1h', b.s_b1h], ['6h', b.s_b6h], ['1 dia', b.s_b1d], ['3 dias', b.s_b3d], ['7 dias', b.s_b7d], ['14 dias', b.s_b14d]], med = 'n/d';
+    for (var i5 = 0; i5 < steps5.length; i5++) { if (div(steps5[i5][1], b.s_b14d) >= 0.5) { med = 'até ' + steps5[i5][0]; break; } }
+    cards('k5', [['Tempo médio até a compra', b.s_cvall ? f1(avgAll) + ' dias' : 'n/d', fi(b.s_cvall) + ' leads novos que já compraram', 1], ['Metade compra em', has5 ? med : 'n/d', 'entre quem comprou em até 14 dias', 1],
+      ['Compram em até 24h', has5 ? fp(d1) : 'n/d', 'de quem comprou em até 14 dias'], ['Compram em até 7 dias', has5 ? fp(d7) : 'n/d', 'de quem comprou em até 14 dias'], ['Conversão em 14 dias', per100(div(b.s_cv14, b.s_el14)) + ' em 100', fi(b.s_el14) + ' leads novos acompanhados']]);
     var cumL = ['1 hora', '6 horas', '1 dia', '3 dias', '7 dias', '14 dias'];
     chart('cCum', { type: 'line', data: { labels: cumL, datasets: [
-      { label: 'Todas as compras', data: [b.s_b1h, b.s_b6h, b.s_b1d, b.s_b3d, b.s_b7d, b.s_b14d].map(function (x) { return div(x, b.s_b14d); }), borderColor: '#19301E', backgroundColor: '#19301E', tension: .25 },
-      { label: 'Compras com cupom CRM', data: [null, null, b.s_c1d, b.s_c3d, b.s_c7d, b.s_c14d].map(function (x) { return x === null || x === undefined ? null : div(x, b.s_c14d); }), borderColor: COL.crm, backgroundColor: COL.crm, borderDash: [5, 4], tension: .25, spanGaps: true }] },
-      options: { scales: { y: { min: 0, max: 1, ticks: pctTicks() }, x: { title: { display: true, text: 'Tempo desde a captura' } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw) + ' já tinham comprado'; } } } } } });
+      { label: 'Todas as compras', data: [b.s_b1h, b.s_b6h, b.s_b1d, b.s_b3d, b.s_b7d, b.s_b14d].map(function (x) { return div(x, b.s_b14d); }), borderColor: COL.B, backgroundColor: COL.B, tension: .25 },
+      { label: 'Compras com cupom CRM', data: [b.s_c1h, b.s_c6h, b.s_c1d, b.s_c3d, b.s_c7d, b.s_c14d].map(function (x) { return div(x, b.s_c14d); }), borderColor: COL.crm, backgroundColor: COL.crm, borderDash: [5, 4], tension: .25 }] },
+      options: { scales: { y: { min: 0, max: 1, ticks: pctTicks() }, x: { title: { display: true, text: 'Tempo desde a primeira captura' } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw) + ' já tinham comprado'; } } } } } });
     chart('cTime', { type: 'bar', data: { labels: BK_L, datasets: ['A', 'B', 'C'].map(function (k) { return { label: NAME[k], backgroundColor: COL[k], data: BK.map(function (x) { return div(O.time[k][x], O.time[k].n); }) }; }) },
       options: { scales: { y: { ticks: pctTicks() }, x: { grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw) + ' dos compradores'; } } } } } });
 
-    // ---- 5
-    var sr = srcRows(), media = srcRows().filter(function (r) { return ['crm', 'outros', '(sem utm)'].indexOf(r.u) < 0 && r.n >= MIN_N; });
-    var best = media.slice().sort(function (a, b2) { return b2.p - a.p; })[0], worst = media.slice().sort(function (a, b2) { return a.p - b2.p; })[0];
-    var tot5 = sr.reduce(function (a, r) { return { n: a.n + r.n, k: a.k + r.p * r.n }; }, { n: 0, k: 0 }), avg5 = div(tot5.k, tot5.n);
-    set('h5', '6. Canais de origem dos leads');
-    cards('k5', [['Média geral', per100(avg5) + ' em 100', 'leads compram com cupom CRM em 14 dias', 1]].concat(best ? [['Melhor canal', SRC_L[best.u], per100(best.p) + ' em 100 leads'], ['Pior canal', SRC_L[worst.u], per100(worst.p) + ' em 100 leads']] : []).concat([['Leads acompanhados', fi(tot5.n), 'desde ' + dbr(m.utmFrom)]]));
-    chart('cSrc', { type: 'bar', plugins: [labels], data: { labels: sr.map(function (r) { return SRC_L[r.u]; }), datasets: [{ data: sr.map(function (r) { return r.p; }), backgroundColor: sr.map(function (r) { return r.n < MIN_N ? '#E6E4DD' : (r.u === 'crm' ? '#FFC2A8' : COL.crm); }) }] },
-      options: { layout: { padding: { top: 22 } }, plugins: { legend: { display: false }, labels: { fmt: function (v, i) { return per100(v) + (sr[i].n < MIN_N ? ' *' : ''); } }, tooltip: { callbacks: { label: function (x) { var r = sr[x.dataIndex]; return per100(r.p) + ' em cada 100 leads (' + fi(r.n) + ' leads)'; } } } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } } } });
-    set('tSrc', '<table style="margin-top:12px"><thead><tr><th>Canal</th><th>Leads acompanhados</th><th>Compraram em 14 dias (qualquer cupom)</th><th>Compraram com cupom CRM</th></tr></thead><tbody>' +
-      sr.map(function (r) { return '<tr><td>' + SRC_L[r.u] + (r.n < MIN_N ? '<span class="tag">poucos dados</span>' : '') + '</td><td>' + fi(r.n) + '</td><td>' + per100(r.pAll) + ' em 100</td><td>' + per100(r.p) + ' em 100</td></tr>'; }).join('') + '</tbody></table>');
+    // ---- 6 jornada
+    var HK = ['0', '1', '2', '3', '4', '5', '6', '7', '8+'], hn = HK.map(function (k) { return (J.hist[k] || { n: 0 }).n; }), mean = div(J.capsSum, J.capsN);
+    var multi = HK.slice(2).reduce(function (a, k) { return a + (J.hist[k] || { n: 0 }).n; }, 0);
+    var lvB = J.lv.B, lvC = J.lv.C;
+    cards('k6', [['Capturas antes da compra', f1(mean), 'média por comprador', 1], ['Visitas com captura', f1(div(J.visSum, J.capsN)), 'média antes da compra'], ['Deixaram o email 2+ vezes', fp(div(multi, J.capsN)), fi(multi) + ' compradores'],
+      ['Pop-up antes do questionário', fp(div(lvB.prevPop, lvB.n)), 'de quem foi ao questionário na última visita', 1], ['Captura antes do checkout', fp(div(lvC.prevAny, lvC.n)), 'de quem chegou ao checkout na última visita', 1]]);
+    chart('cHist', { type: 'bar', plugins: [labels, meanLine], data: { labels: HK, datasets: [{ label: 'Compradores', data: hn, backgroundColor: HK.map(function (k) { return k === '0' ? COL.D : COL.B; }) }] },
+      options: { layout: { padding: { top: 18 } }, scales: { x: { title: { display: true, text: 'Capturas antes da compra' }, grid: { display: false } }, y: { title: { display: true, text: 'Compradores' } } },
+        plugins: { legend: { display: false }, meanLine: { value: mean, text: 'média ' + f1(mean) }, labels: { fmt: function (v) { return fp(div(v, J.capsN)); } }, tooltip: { callbacks: { label: function (x) { return fi(x.raw) + ' compradores (' + fp(div(x.raw, J.capsN), 1) + ')'; } } } } } });
+    var SH = ['0', '1', '2', '3+'], SHC = ['#E6E4DD', '#CFE0D3', '#6B8E5A', '#19301E'];
+    chart('cStepHist', { type: 'bar', data: { labels: ['Pop-up', 'Questionário', 'Checkout'], datasets: SH.map(function (k, i) { return { label: k === '0' ? 'Nenhuma' : k + (k === '1' ? ' vez' : ' vezes'), backgroundColor: SHC[i], data: ['pop', 'quiz', 'ck'].map(function (s) { return div(J.stepHist[s][k] || 0, J.capsN); }) }; }) },
+      options: { indexAxis: 'y', scales: { x: { stacked: true, max: 1, ticks: pctTicks() }, y: { stacked: true, grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw, 1); } } } } } });
+    set('tPrev', tbl(['Última visita antes da compra', 'Compradores', 'Pop-up em visita anterior', 'Questionário em visita anterior', 'Alguma captura anterior', 'Com cupom CRM'],
+      ['A', 'B', 'C'].map(function (k) { var x = J.lv[k]; return [NAME[k], fi(x.n), fp(div(x.prevPop, x.n)), fp(div(x.prevQuiz, x.n)), fp(div(x.prevAny, x.n)), fp(div(x.crm, x.n))]; })));
+    var RK = ['1', '2', '3', '4', '5+'], rTot = RK.reduce(function (a, k) { return a + (J.rnk[k] || { n: 0 }).n; }, 0);
+    chart('cRnk', { type: 'bar', plugins: [labels], data: { labels: RK.map(function (k) { return k + 'ª visita'; }), datasets: [{ data: RK.map(function (k) { return (J.rnk[k] || { n: 0 }).n; }), backgroundColor: COL.B }] },
+      options: { layout: { padding: { top: 18 } }, scales: { x: { grid: { display: false } } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return fp(div(v, rTot)); } } } } });
+    chart('cHistCrm', { type: 'bar', plugins: [labels], data: { labels: HK, datasets: [{ data: HK.map(function (k) { var x = J.hist[k] || { n: 0, crm: 0 }; return x.n >= 50 ? div(x.crm, x.n) : null; }), backgroundColor: COL.crm }] },
+      options: { layout: { padding: { top: 18 } }, scales: { x: { title: { display: true, text: 'Capturas antes da compra' }, grid: { display: false } }, y: { ticks: pctTicks() } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return fp(v); } }, tooltip: { callbacks: { label: function (x) { return fp(x.raw, 1) + ' com cupom CRM'; } } } } } });
 
-    // ---- 6
-    var co = O.campaignOrder.slice(0, 10), top6 = co.filter(function (x) { return x !== '(sem utm)'; })[0];
-    var ca = O.campAttrOrder.slice(0, 10), crmAttrTot = O.campAttrOrder.reduce(function (a, k) { return a + (O.campAttrCount[k] || 0); }, 0);
-    var topAttr = ca[0], topAttrShare = div(O.campAttrCount[topAttr] || 0, crmAttrTot);
-    set('h6', '7. Campanhas');
-    cards('k6', [['Campanha CRM nº 1', topAttr || 'n/d', fp(topAttrShare) + ' das vendas com cupom', 1], ['Top 3 campanhas CRM', fp(div(ca.slice(0, 3).reduce(function (a, k) { return a + (O.campAttrCount[k] || 0); }, 0), crmAttrTot)), 'das vendas com cupom'], ['Campanha de mídia nº 1', top6 || 'n/d', top6 ? fi(O.campaigns[top6].A + O.campaigns[top6].B + O.campaigns[top6].C) + ' compradores' : '']]);
-    set('tCamp', '<table><thead><tr><th>UTM campaign da captura</th><th>Pop-up</th><th>Questionário</th><th>Checkout</th><th>Total</th><th>Com cupom CRM</th></tr></thead><tbody>' +
-      co.map(function (n) { var x = O.campaigns[n], t = x.A + x.B + x.C, cr = x.Acrm + x.Bcrm + x.Ccrm; return '<tr><td>' + n + '</td><td>' + fi(x.A) + '</td><td>' + fi(x.B) + '</td><td>' + fi(x.C) + '</td><td>' + fi(t) + '</td><td>' + fi(cr) + ' (' + per100(div(cr, t)) + ' em 100)</td></tr>'; }).join('') + '</tbody></table>');
-    chart('cAttr', { type: 'bar', data: { labels: ca, datasets: ['A', 'B', 'C', 'D', 'X'].map(function (k) { return { label: NAME[k], backgroundColor: COL[k], data: ca.map(function (x) { return (O.campAttr[x] || {})[k] || 0; }) }; }) },
-      options: { indexAxis: 'y', scales: { x: { stacked: true, title: { display: true, text: 'Vendas com cupom CRM' } }, y: { stacked: true, grid: { display: false }, ticks: { callback: function (v) { var l = this.getLabelForValue(v); return l.length > 42 ? l.slice(0, 41) + '…' : l; } } } } } });
+    // ---- 7 etapa antes da compra
+    var lvN = { A: J.lv.A.n, B: J.lv.B.n, C: J.lv.C.n }, lvTot = lvN.A + lvN.B + lvN.C, topLv = ['A', 'B', 'C'].sort(function (a, b2) { return lvN[b2] - lvN[a]; })[0];
+    set('h7', '7. ' + fp(div(lvN[topLv], lvTot)) + ' dos compradores com captura chegaram até o ' + NAME[topLv].toLowerCase() + ' na última visita antes da compra');
+    cards('k7', ['A', 'B', 'C'].map(function (k) { return ['Última visita: ' + NAME[k], fp(div(lvN[k], lvTot)), fi(lvN[k]) + ' compradores', k === topLv]; }).concat([['Sem captura antes da compra', fp(div(c.D.n + c.X.n, N)), fi(c.D.n + c.X.n) + ' compradores']]));
+    chart('cLv', { type: 'bar', plugins: [labels], data: { labels: ['Pop-up', 'Questionário', 'Checkout', 'Sem captura anterior', 'Sem email'], datasets: [
+      { label: 'Etapa da última visita antes da compra', backgroundColor: COL.B, data: [lvN.A, lvN.B, lvN.C, c.D.n, c.X.n].map(function (v) { return div(v, N); }) },
+      { label: 'Etapa mais avançada em qualquer visita anterior', backgroundColor: COL.crm, data: [c.A.n, c.B.n, c.C.n, c.D.n, c.X.n].map(function (v) { return div(v, N); }) }] },
+      options: { layout: { padding: { top: 18 } }, scales: { y: { ticks: pctTicks() }, x: { grid: { display: false } } }, plugins: { labels: { fmt: function (v) { return fp(v); } } } } });
+    set('n7', 'Visita = capturas com menos de 60 minutos de intervalo. "Mais avançada em qualquer visita": checkout (conta criada) > questionário > pop-up, considerando todas as visitas antes da sessão de compra.');
+
+    // ---- 8 recupero
+    var rec = ['A', 'B', 'C', 'D'].filter(function (k) { return c[k].n >= 300; }).sort(function (a, b2) { return c[b2].share - c[a].share; })[0] || 'B';
+    var topVol = ['A', 'B', 'C', 'D'].sort(function (a, b2) { return c[b2].crm - c[a].crm; })[0];
+    set('h8', '8. Maior recupero proporcional: ' + NAME[rec].toLowerCase() + ' (' + per100(c[rec].share) + ' em 100). Maior volume: ' + NAME[topVol].toLowerCase() + ' (' + fp(div(c[topVol].crm, crmT)) + ' das vendas CRM)');
+    cards('k8', ['A', 'B', 'C', 'D'].map(function (k) { return [NAME[k], per100(c[k].share) + ' em 100', fi(c[k].crm) + ' vendas CRM de ' + fi(c[k].n), k === rec]; }));
+    chart('cShare', { type: 'bar', plugins: [labels], data: { labels: ['A', 'B', 'C', 'D'].map(function (k) { return NAME[k]; }), datasets: [
+      { label: 'Etapa mais avançada antes da compra', backgroundColor: ['A', 'B', 'C', 'D'].map(function (k) { return COL[k]; }), data: ['A', 'B', 'C', 'D'].map(function (k) { return c[k].share; }) },
+      { label: 'Etapa da última visita', backgroundColor: COL.crm, data: ['A', 'B', 'C'].map(function (k) { return div(J.lv[k].crm, J.lv[k].n); }).concat([null]) }] },
+      options: { layout: { padding: { top: 20 } }, scales: { y: { ticks: pctTicks() }, x: { grid: { display: false } } }, plugins: { legend: { labels: { generateLabels: function () { return [{ text: 'Etapa mais avançada antes da compra', fillStyle: COL.B, strokeStyle: COL.B }, { text: 'Etapa da última visita', fillStyle: COL.crm, strokeStyle: COL.crm }]; } } }, labels: { fmt: function (v) { return per100(v); } } } } });
+    chart('cCrmMix', { type: 'doughnut', data: { labels: STEPS.map(function (k) { return NAME[k]; }), datasets: [{ data: STEPS.map(function (k) { return c[k].crm; }), backgroundColor: STEPS.map(function (k) { return COL[k]; }) }] },
+      options: { cutout: '55%', plugins: { legend: { position: 'right' }, tooltip: { callbacks: { label: function (x) { return x.label + ': ' + fi(x.raw) + ' (' + fp(div(x.raw, crmT)) + ')'; } } } } } });
 
     renderS();
-    renderM();
-    // ---- 7
+
+    // ---- 10 email perto
     var tB = O.tiers.B, clickB = div(tB[TIERS[0]] || 0, tB.crm), noTouchB = div(tB[TIERS[3]] || 0, tB.crm), onlySentB = div(tB[TIERS[2]] || 0, tB.crm);
-    var eB = land('B', 'sim'), nB = land('B', 'nao'), pe = div(eB.l_cv14, eB.l_el14), pn = div(nB.l_cv14, nB.l_el14);
-    set('h7', '9. O email está perto da compra?');
-    cards('k7', [['Clicaram no email', fp(clickB), 'nas 24h antes da compra*', 1], ['Só receberam', fp(onlySentB), 'sem abrir*'], ['Sem contato no dia', fp(noTouchB), 'compraram com cupom sem email*'], ['Recebeu email x não recebeu', per100(pe) + ' x ' + per100(pn), 'em 100 leads compram em 14 dias**', 1]]);
+    var eB = D.L.land['B|sim'] || {}, nBq = D.L.land['B|nao'] || {}, pe = div(eB.l_cv14, eB.l_el14), pn = div(nBq.l_cv14, nBq.l_el14);
+    cards('k10', [['Clicaram no email', fp(clickB), 'nas 24h antes da compra (questionário)', 1], ['Só receberam', fp(onlySentB), 'sem abrir'], ['Sem contato no dia', fp(noTouchB), 'compraram com cupom sem email'], ['Recebeu email x não recebeu', per100(pe) + ' x ' + per100(pn), 'em 100 leads compram em 14 dias', 1]]);
     chart('cTier', { type: 'bar', data: { labels: ['A', 'B', 'C', 'D'].map(function (k) { return NAME[k]; }), datasets: TIERS.map(function (t, i) { return { label: TIER_L[i], backgroundColor: TIER_C[i], data: ['A', 'B', 'C', 'D'].map(function (k) { return div(O.tiers[k][t] || 0, O.tiers[k].crm); }) }; }) },
       options: { indexAxis: 'y', scales: { x: { stacked: true, max: 1, ticks: pctTicks() }, y: { stacked: true, grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw); } } } } } });
     chart('cExp', { type: 'bar', plugins: [labels], data: { labels: ['Recebeu email', 'Não recebeu'], datasets: [{ backgroundColor: [COL.crm, COL.non], data: [pe, pn] }] },
-      options: { layout: { padding: { top: 22 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return per100(v) + ' em 100'; } }, tooltip: { callbacks: { label: function (x) { return per100(x.raw) + ' em cada 100 leads (' + fi(x.dataIndex ? nB.l_el14 : eB.l_el14) + ' leads)'; } } } } } });
-    var launch = m.launch, preFrom = addDays(launch, -14) < m.start ? m.start : addDays(launch, -14), preTo = addDays(launch, -1), lastObs = addDays(m.today, -9), posTo = m.end < lastObs ? m.end : lastObs;
-    var pre = preFrom <= preTo ? sumLand(preFrom, preTo, ['l_el7', 'l_cv7', 'l_cr7']) : null, pos = launch <= posTo ? sumLand(launch, posTo, ['l_el7', 'l_cv7', 'l_cr7']) : null;
-    set('ppNote', 'Leads capturados antes (' + (pre && pre.l_el7 ? dbr(preFrom) + ' a ' + dbr(preTo) : 'fora do período') + ') e depois (' + (pos && pos.l_el7 ? dbr(launch) + ' a ' + dbr(posTo) : 'fora do período') + ') do retargeting de ' + dbr(launch) + ': % que comprou em 7 dias.');
-    chart('cPP', { type: 'bar', data: { labels: ['Comprou (qualquer cupom)', 'Comprou com cupom CRM'], datasets: [
-      { label: 'Antes', backgroundColor: COL.non, data: pre && pre.l_el7 ? [div(pre.l_cv7, pre.l_el7), div(pre.l_cr7, pre.l_el7)] : [null, null] },
-      { label: 'Depois', backgroundColor: COL.crm, data: pos && pos.l_el7 ? [div(pos.l_cv7, pos.l_el7), div(pos.l_cr7, pos.l_el7)] : [null, null] }] },
-      options: { scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + per100(x.raw) + ' em cada 100 leads'; } } } } } });
-    set('n7', '* Vendas com cupom CRM de quem passou pelo questionário. ** Quem recebe email já é diferente de quem não recebe: a diferença é o máximo que o CRM pode gerar, não o efeito real.');
+      options: { layout: { padding: { top: 22 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return per100(v) + ' em 100'; } } } } });
+    var ca = O.campAttrOrder.slice(0, 10);
+    chart('cAttr', { type: 'bar', data: { labels: ca, datasets: STEPS.map(function (k) { return { label: NAME[k], backgroundColor: COL[k], data: ca.map(function (x) { return (O.campAttr[x] || {})[k] || 0; }) }; }) },
+      options: { indexAxis: 'y', scales: { x: { stacked: true, title: { display: true, text: 'Vendas com cupom CRM' } }, y: { stacked: true, grid: { display: false }, ticks: { callback: function (v) { var l = this.getLabelForValue(v); return l.length > 42 ? l.slice(0, 41) + '…' : l; } } } } } });
 
-    // ---- 8
-    var wB = sumLand(addDays(m.end, -20) < m.start ? m.start : addDays(m.end, -20), m.end, ['l_leads'], 'B').l_leads / 3;
+    // ---- 11 próximo passo
+    var wB = 0; (D.NB || []).forEach(function (r) { if (r[1] === 1 && r[2] === 'quiz' && r[0] > addDays(m.end, -21)) wB += r[3]; }); wB = wB / 3;
     var nArm = pe ? Math.ceil(2 * 2.8 * 2.8 * pe * (1 - pe) / Math.pow(pe * 0.2, 2)) : 0, weeks = wB ? Math.ceil(nArm / (wB * 0.2)) : 0;
-    set('h8', '10. Próximo passo: medir o efeito real do CRM');
-    cards('k8', [['Grupo sem email', '20%', 'dos novos leads, sorteados', 1], ['Tempo de teste', weeks ? '~' + weeks + (weeks === 1 ? ' semana' : ' semanas') : 'n/d', 'para detectar +20% de compras', 1], ['Leads por grupo', fi(nArm), 'necessários em cada grupo'], ['Comparação', '14 dias', 'depois da captura']]);
-    set('t8', tbl(['Ação', 'Por quê'], [['Grupo de controle de 20% nas réguas de retargeting', 'Saber quantas vendas acontecem sem o email'], ['Mensagens nas primeiras 24 a 72h', (has4 ? fp(d1) : 'n/d') + ' das compras acontecem em 24h'], ['Priorizar canais com mais compra via CRM', best ? SRC_L[best.u] + ': ' + per100(best.p) + ' em 100 leads' : 'ver bloco 5']]));
+    cards('k11', [['Grupo sem email', '20%', 'dos novos leads, sorteados', 1], ['Tempo de teste', weeks ? '~' + weeks + (weeks === 1 ? ' semana' : ' semanas') : 'n/d', 'para detectar +20% de compras', 1], ['Leads por grupo', fi(nArm), 'necessários em cada grupo'], ['Comparação', '14 dias', 'depois da captura']]);
+    set('t11', tbl(['Ação', 'Por quê'], [
+      ['Grupo de controle de 20% nas réguas de CRM', 'Hoje nenhum número prova quanto o email causa: só um grupo sem email mostra quantas vendas aconteceriam de qualquer forma.'],
+      ['Mensagens nas primeiras 24 a 72h depois da captura', has5 ? fp(d1) + ' das compras dos leads novos acontecem em 24h.' : 'A maior parte das compras acontece logo depois da captura.'],
+      ['Tratar recapturas de quem já estava na base', fp(div(nBase, nNew + nBase)) + ' das capturas do período são de emails que já estavam no CRM.'],
+      ['Corrigir UTMs das campanhas', 'Leads com {{campaign.name}} e UTMs diferentes do nome da campanha não entram no custo por lead.']], 'txt'));
 
     // ---- glossário
     set('gloss', tbl(['Termo', 'Significado'], [
       ['Aquisição', 'Primeiro pedido confirmado de um cliente novo da Voy (WL BR), pela data do checkout no fuso de Brasília.'],
       ['Venda com cupom CRM', 'Aquisição feita com um dos cupons distribuídos pelo CRM: ' + D.crmPromos.join(', ') + '.'],
-      ['Etapa de captura', 'Onde o cliente deixou o email antes da visita em que comprou. Se passou por mais de uma, vale a mais avançada: checkout, depois questionário, depois pop-up. Assim cada cliente é contado uma vez só.'],
-      ['Visita de compra', 'A sessão do site em que o pedido foi feito. Quando ela não está registrada, usamos 10 minutos antes do checkout.'],
-      ['Lead acompanhado', 'Email capturado no período que já teve 14 dias completos para comprar. Leads mais recentes ainda não entram nas taxas.'],
+      ['Lead novo', 'Email capturado no site (pop-up ou questionário) sem nenhum registro anterior no Customer.io (histórico desde 10/07/2026). Quem já tinha registro conta como "já na base".'],
+      ['Primeira captura', 'Primeiro evento de captura do email; todos os tempos e fontes de leads partem dela.'],
+      ['Visita', 'Sequência de capturas (pop-up, questionário, criação de conta) com menos de 60 minutos entre uma e outra.'],
+      ['Visita de compra', 'A sessão do site em que o pedido foi feito. Sem sessão registrada, 10 minutos antes do checkout.'],
+      ['Etapa antes da compra', 'Checkout (conta criada antes da sessão de compra) > questionário > pop-up. "Mais avançada" olha todas as visitas anteriores; "última visita" olha só a visita mais recente antes da compra.'],
       ['"X em cada 100"', 'Forma simples de ler um percentual: 2,4 em cada 100 leads = 2,4% dos leads.'],
-      ['Canal de origem', 'utm_source registrado na captura do email. Só é confiável a partir de ' + dbr(m.utmFrom) + '; antes disso o questionário não gravava a UTM.'],
-      ['Limitações', 'O histórico de captura começa em ' + dbr(m.dataStart) + '. As réguas de CRM não têm grupo de controle, então nenhum número aqui prova que o email causou a venda. Dados de ' + dbr(m.today) + ' (hoje) não entram.']
-    ]));
+      ['Custo', 'Amount Spent da aba Campanhas + 12,5% de imposto. Custo por comprador em 7 dias usa só os dias cujos leads já completaram 7 dias.'],
+      ['Limitações', 'Histórico de captura desde ' + dbr(m.dataStart) + '. UTM do questionário confiável desde ' + dbr(m.utmFrom) + '. As réguas de CRM não têm grupo de controle. O dia de hoje não entra.']
+    ], 'txt'));
 
-    // ---- resumo
-    cards('sumCards', [['Aquisições', fi(N), dbr(m.start) + ' a ' + dbr(m.end)], ['Com cupom CRM', fp(crmShare, 1), fi(crmT) + ' vendas'], ['Já na base antes da compra', fp(div(cap, N)), 'email capturado antes'],
-      ['Vendas CRM do questionário', fp(div(c.B.crm, crmT)), 'principal origem'], ['Compram em até 24h', has4 ? fp(d1) : 'n/d', 'depois da captura'], ['Clique antes da compra', fp(clickB), 'vendas CRM do questionário']]);
+    // ---- resumo (uma linha)
+    var lb = leadBlock();
+    cards('sumCards', [['Aquisições', fi(N), fp(crmShare, 1) + ' com cupom CRM'], ['Leads novos', fi(nNew), fi(nNew / nd) + ' por dia'], ['Maior fonte', lb.topSrc ? SRC_L[lb.topSrc] || lb.topSrc : 'n/d', lb.topSrc ? fp(lb.topShare) + ' dos leads novos' : ''],
+      ['Tempo médio até a compra', b.s_cvall ? f1(avgAll) + ' dias' : 'n/d', has5 ? fp(d1) + ' compram em 24h' : ''], ['Capturas antes da compra', f1(mean), 'média por comprador'],
+      ['Maior recupero CRM', NAME[rec], per100(c[rec].share) + ' em 100 compradores']]);
+    addInfo();
   }
 
+  // ---------- 3 fontes (leads novos por source e campanha)
+  function leadBlock() {
+    var R = (D.M && D.M.leads || []).filter(function (r) { return r.dia >= D.meta.utmFrom; }), src = {}, camp = {}, tot = 0;
+    R.forEach(function (r) {
+      var s = src[r.usb] = src[r.usb] || { leads: 0, el14: 0, cv14: 0, cr14: 0 }; s.leads += r.leads; s.el14 += r.el14; s.cv14 += r.cv14; s.cr14 += r.cr14; tot += r.leads;
+      var k = r.usb + '|' + r.uc, x = camp[k] = camp[k] || { usb: r.usb, uc: r.uc, leads: 0, el14: 0, cv14: 0, cr14: 0 }; x.leads += r.leads; x.el14 += r.el14; x.cv14 += r.cv14; x.cr14 += r.cr14;
+    });
+    var order = Object.keys(src).sort(function (a, b) { return src[b].leads - src[a].leads; });
+    return { src: src, camp: camp, tot: tot, order: order, topSrc: order[0], topShare: order[0] ? div(src[order[0]].leads, tot) : 0 };
+  }
+  function renderSources() {
+    var lb = leadBlock(), src = lb.src, order = lb.order;
+    var cl = Object.keys(lb.camp).map(function (k) { return lb.camp[k]; }).sort(function (a, b) { return b.leads - a.leads; }), topC = cl.filter(function (x) { return x.uc !== '(sem campanha)' && x.uc !== '(sem utm)'; })[0];
+    var conv = order.filter(function (u) { return src[u].el14 >= MIN_N; }).sort(function (a, b) { return div(src[b].cv14, src[b].el14) - div(src[a].cv14, src[a].el14); })[0];
+    set('h3', '3. ' + (lb.topSrc ? (SRC_L[lb.topSrc] || lb.topSrc) + ' gera ' + fp(lb.topShare) + ' dos leads novos' : 'De onde vêm os leads novos'));
+    cards('k3', [['Maior fonte de leads', lb.topSrc ? SRC_L[lb.topSrc] || lb.topSrc : 'n/d', lb.topSrc ? fi(src[lb.topSrc].leads) + ' leads novos' : '', 1], ['Maior campanha', topC ? topC.uc : 'n/d', topC ? fi(topC.leads) + ' leads novos (' + (SRC_L[topC.usb] || topC.usb) + ')' : ''],
+      ['Fonte que mais converte', conv ? SRC_L[conv] || conv : 'n/d', conv ? per100(div(src[conv].cv14, src[conv].el14)) + ' em 100 compram em 14 dias' : ''], ['Leads novos com UTM confiável', fi(lb.tot), 'desde ' + dbr(D.meta.utmFrom)]]);
+    chart('cSrcVol', { type: 'bar', plugins: [labels], data: { labels: order.map(function (u) { return SRC_L[u] || u; }), datasets: [{ data: order.map(function (u) { return src[u].leads; }), backgroundColor: COL.B }] },
+      options: { indexAxis: 'y', layout: { padding: { right: 60 } }, scales: { x: { display: false }, y: { grid: { display: false } } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return fi(v) + ' (' + fp(div(v, lb.tot)) + ')'; } } } } });
+    var oc = order.filter(function (u) { return src[u].el14 > 0; });
+    chart('cSrc', { type: 'bar', plugins: [labels], data: { labels: oc.map(function (u) { return SRC_L[u] || u; }), datasets: [
+      { label: 'Qualquer compra', data: oc.map(function (u) { return div(src[u].cv14, src[u].el14); }), backgroundColor: oc.map(function (u) { return src[u].el14 < MIN_N ? '#E6E4DD' : COL.B; }) },
+      { label: 'Com cupom CRM', data: oc.map(function (u) { return div(src[u].cr14, src[u].el14); }), backgroundColor: oc.map(function (u) { return src[u].el14 < MIN_N ? '#F3E6DE' : COL.crm; }) }] },
+      options: { layout: { padding: { top: 20 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { labels: { fmt: function (v) { return per100(v); } }, tooltip: { callbacks: { label: function (x) { var u = oc[x.dataIndex]; return x.dataset.label + ': ' + per100(x.raw) + ' em 100 (' + fi(src[u].el14) + ' leads)'; } } } } } });
+    set('tCampL', tbl(['Source', 'Campanha da primeira captura', 'Leads novos', '% dos leads novos', 'Compram em 14 dias', 'Com cupom CRM em 14 dias'],
+      cl.slice(0, 15).map(function (x) { return [SRC_L[x.usb] || x.usb, x.uc, fi(x.leads), fp(div(x.leads, lb.tot), 1), x.el14 ? per100(div(x.cv14, x.el14)) + ' em 100' : 'n/d', x.el14 ? per100(div(x.cr14, x.el14)) + ' em 100' : 'n/d']; })));
+  }
 
+  // ---------- 4 Meta
+  function renderM() {
+    var M = D.M; if (!M) { set('kM', '<div class="empty">Sem dados de campanha. Clique em "Atualizar dados".</div>'); return; }
+    var isLead = function (n) { return n.indexOf('lead') >= 0; }, isMeta = function (r) { return r.usb === 'fb' || r.uc.indexOf('voy_wl_meta') >= 0; };
+    var cut7 = addDays(D.meta.today, -8), disp = {}; M.spend.forEach(function (r) { disp[r[1]] = r[3]; });
+    var leadDays = {}; M.spend.forEach(function (r) { if (isLead(r[1]) && r[2] > 0) leadDays[r[0]] = 1; });
+    var same = $('mSameDays').checked && Object.keys(leadDays).length > 0, inDay = function (d) { return !same || leadDays[d]; };
+    var camp = {}, days = {}, KEYS = ['leads', 'el3', 'cv3', 'el7', 'cv7', 'cr7', 'cvall', 'crall', 'sdtc'];
+    function cg(n) { if (!camp[n]) { camp[n] = { n: n, cost: 0, cost7: 0 }; KEYS.forEach(function (k) { camp[n][k] = 0; }); } return camp[n]; }
+    function dg(d, g) { var x = days[d] = days[d] || { L: { cost: 0, leads: 0 }, O: { cost: 0, leads: 0 } }; return x[g]; }
+    M.spend.forEach(function (r) { if (!inDay(r[0])) return; var x = cg(r[1]); x.cost += r[2]; if (r[0] <= cut7) x.cost7 += r[2]; dg(r[0], isLead(r[1]) ? 'L' : 'O').cost += r[2]; });
+    M.leads.forEach(function (r) { if (!isMeta(r) || !inDay(r.dia)) return; var x = cg(r.uc); KEYS.forEach(function (k) { x[k] += r[k]; }); dg(r.dia, isLead(r.uc) ? 'L' : 'O').leads += r.leads; });
+    var list = Object.keys(camp).map(function (k) { return camp[k]; }).filter(function (x) { return x.cost > 0 || x.leads >= 20; });
+    var G = { L: { cost: 0, cost7: 0 }, O: { cost: 0, cost7: 0 } }; ['L', 'O'].forEach(function (g) { KEYS.forEach(function (k) { G[g][k] = 0; }); });
+    list.forEach(function (x) { var g = G[isLead(x.n) ? 'L' : 'O']; g.cost += x.cost; g.cost7 += x.cost7; KEYS.forEach(function (k) { g[k] += x[k]; }); });
+    function cpl(x) { return x.leads ? x.cost / x.leads : null; }
+    function cpa7(x) { return x.cv7 ? x.cost7 / x.cv7 : null; } function cpaCrm7(x) { return x.cr7 ? x.cost7 / x.cr7 : null; }
+    function cpaCrmAll(x) { return x.crall ? x.cost / x.crall : null; }
+    function r3(x) { return x.el3 ? div(x.cv3, x.el3) : null; } function r7(x) { return x.el7 ? div(x.cv7, x.el7) : null; }
+    function dd(x) { return x.cvall ? f1(x.sdtc / x.cvall / 1440) + ' dias' : 'n/d'; }
+    function p100(v) { return v === null ? 'n/d' : per100(v) + ' em 100'; }
+    var L = G.L, O = G.O, vL = cpa7(L), vO = cpa7(O), verdict = vL === null || vO === null ? 'Ainda sem dados' : (vL <= vO ? 'Sim' : 'Ainda não');
+    cards('kM', [['CPL campanhas de lead', brl(cpl(L)), fi(L.leads) + ' leads novos', 1], ['CPL demais Meta', brl(cpl(O)), fi(O.leads) + ' leads novos', 1],
+      ['Custo por comprador em 7 dias', brl0(vL) + ' x ' + brl0(vO), 'lead x demais'], ['Custo por comprador CRM em 7 dias', brl0(cpaCrm7(L)) + ' x ' + brl0(cpaCrm7(O)), 'lead x demais'],
+      ['A ação de leads compensa?', verdict, 'pelo custo por comprador em 7 dias', 1]]);
+    var diff = function (a, b) { if (a === null || b === null || !b) return ''; var v = a / b - 1; return (v > 0 ? '+' : '') + fp(v); };
+    set('tMcmp', tbl(['Métrica', 'Campanhas de lead', 'Demais Meta', 'Diferença'], [
+      ['Custo com imposto', brl(L.cost), brl(O.cost), ''], ['Leads novos', fi(L.leads), fi(O.leads), ''], ['Custo por lead novo', brl(cpl(L)), brl(cpl(O)), diff(cpl(L), cpl(O))],
+      ['Compram em até 3 dias', p100(r3(L)), p100(r3(O)), diff(r3(L), r3(O))], ['Compram em até 7 dias', p100(r7(L)), p100(r7(O)), diff(r7(L), r7(O))],
+      ['Custo por comprador em 7 dias', brl(vL), brl(vO), diff(vL, vO)], ['Custo por comprador CRM em 7 dias', brl(cpaCrm7(L)), brl(cpaCrm7(O)), diff(cpaCrm7(L), cpaCrm7(O))],
+      ['Custo por comprador CRM até hoje', brl(cpaCrmAll(L)), brl(cpaCrmAll(O)), diff(cpaCrmAll(L), cpaCrmAll(O))],
+      ['Dias da captura até a compra (média)', dd(L), dd(O), '']]));
+    var dk = Object.keys(days).sort();
+    chart('cMcpl', { type: 'line', data: { labels: dk.map(function (d) { return dbr(d).slice(0, 5); }), datasets: [
+      { label: 'Campanhas de lead', data: dk.map(function (d) { var x = days[d].L; return x.leads ? x.cost / x.leads : null; }), borderColor: COL.crm, backgroundColor: COL.crm, tension: .25, spanGaps: true },
+      { label: 'Demais Meta', data: dk.map(function (d) { var x = days[d].O; return x.leads ? x.cost / x.leads : null; }), borderColor: COL.B, backgroundColor: COL.B, tension: .25, spanGaps: true }] },
+      options: { scales: { y: { ticks: { callback: function (v) { return brl0(v); } } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + brl(x.raw); } } } } } });
+    chart('cMconv', { type: 'bar', plugins: [labels], data: { labels: ['Em até 3 dias', 'Em até 7 dias'], datasets: [
+      { label: 'Campanhas de lead', backgroundColor: COL.crm, data: [r3(L), r7(L)] }, { label: 'Demais Meta', backgroundColor: COL.B, data: [r3(O), r7(O)] }] },
+      options: { layout: { padding: { top: 20 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { labels: { fmt: function (v) { return per100(v); } } } } });
+    list.sort(function (a, b) { return (isLead(b.n) - isLead(a.n)) || (b.cost - a.cost); });
+    set('tM', tbl(['Campanha', 'Tipo', 'Custo c/ imposto', 'Leads novos', 'CPL', 'Compram em 7d', 'Custo/comprador 7d', 'Custo/comprador CRM 7d', 'Custo/comprador CRM até hoje', 'Dias até a compra'],
+      list.map(function (x) { return [(disp[x.n] || x.n) + (x.cost > 0 && !x.leads ? '<span class="tag">sem leads rastreados</span>' : '') + (!x.cost ? '<span class="tag">sem custo na aba</span>' : ''), isLead(x.n) ? 'Lead' : 'Demais', brl(x.cost), fi(x.leads), brl(cpl(x)), p100(r7(x)), brl(cpa7(x)), brl(cpaCrm7(x)), brl(cpaCrmAll(x)), dd(x)]; })));
+    var first = Object.keys(leadDays).sort()[0];
+    set('nM', 'Só leads novos (sem registro anterior no Customer.io) cuja primeira captura teve a utm_campaign da campanha. Custo da aba Campanhas + ' + fp(M.tax, 1) + ' de imposto; LEADS_CREATORS fica fora. ' +
+      'Custo por comprador em 7 dias = custo dos dias cujos leads já completaram 7 dias ÷ compradores em 7 dias desses leads; "até hoje" usa todo o custo e todas as compras feitas até agora. ' + (same && first ? 'Período comparado: dias com custo em campanhas de lead (desde ' + dbr(first) + ').' : ''));
+  }
+  window.__renderM = function () { if (D) { renderM(); } };
 
-  // ---------- 4. disparos por etapa
+  // ---------- 9 disparos
   function renderS() {
     var R = D.S || [], BKS = ['0', '1-2', '3-5', '6-9', '10+'], ST = ['A', 'B', 'C'], MIN = 150;
     if (!R.length) { set('kS', '<div class="empty">Sem dados de disparos. Clique em "Atualizar dados".</div>'); return; }
-    var a = {}; ST.forEach(function (s) { a[s] = { tot: { n14: 0, s14: 0, el: 0, m72: 0, a72: 0, cv: 0, cr: 0 } }; BKS.forEach(function (b) { a[s][b] = { el: 0, cv: 0, cr: 0 }; }); });
-    R.forEach(function (r) { var x = a[r.st]; if (!x) return; var t = x.tot; t.n14 += r.n14; t.s14 += r.s14_sum; t.el += r.el; t.m72 += r.m72_sum; t.a72 += r.a72_sum; t.cv += r.cv; t.cr += r.cr; var y = x[r.bk]; if (y) { y.el += r.el; y.cv += r.cv; y.cr += r.cr; } });
-    var avg14 = function (s) { return div(a[s].tot.s14, a[s].tot.n14); }, rate = function (s) { return div(a[s].tot.cr, a[s].tot.el); };
-    // decomposição pop-up x questionário: taxas do pop-up com o mix de disparos do questionário
+    var a = {}; ST.forEach(function (s) { a[s] = { tot: { el: 0, s14: 0, m72: 0, a72: 0, cv: 0, cr: 0 } }; BKS.forEach(function (b) { a[s][b] = { el: 0, cv: 0, cr: 0 }; }); });
+    R.forEach(function (r) { var x = a[r.st]; if (!x) return; var t = x.tot; t.el += r.el; t.s14 += r.s14_el; t.m72 += r.m72_sum; t.a72 += r.a72_sum; t.cv += r.cv; t.cr += r.cr; var y = x[r.bk]; if (y) { y.el += r.el; y.cv += r.cv; y.cr += r.cr; } });
+    var s14 = function (s) { return div(a[s].tot.s14, a[s].tot.el); }, s72 = function (s) { return div(a[s].tot.m72 + a[s].tot.a72, a[s].tot.el); }, rate = function (s) { return div(a[s].tot.cr, a[s].tot.el); };
     var rA = rate('A'), rB = rate('B'), rAstar = 0;
     BKS.forEach(function (b) { var w = div(a.B[b].el, a.B.tot.el), x = a.A[b]; rAstar += w * (x.el >= 50 ? div(x.cr, x.el) : rA); });
     var gap = rB - rA, bySends = gap > 0 ? Math.max(0, Math.min(1, (rAstar - rA) / gap)) : null;
-    cards('kS', [['Disparos em 14 dias · pop-up', f1(avg14('A')), 'média por lead, até a compra'], ['Disparos em 14 dias · questionário', f1(avg14('B')), 'média por lead, até a compra'], ['Disparos em 14 dias · checkout', f1(avg14('C')), 'média por lead, até a compra'],
-      ['Compra CRM · pop-up x questionário', per100(rA) + ' x ' + per100(rB), 'em 100 leads (3 a 14 dias)'],
-      ['Diferença explicada pelos disparos', bySends === null ? 'n/d' : fp(bySends), 'o resto vem do perfil do lead', 1], ['Diferença explicada pelo lead', bySends === null ? 'n/d' : fp(1 - bySends), 'lead mais quente', 1]]);
+    cards('kS', [['Disparos em 72h', f1(s72('A')) + ' · ' + f1(s72('B')) + ' · ' + f1(s72('C')), 'pop-up · questionário · checkout'], ['Disparos em 14 dias', f1(s14('A')) + ' · ' + f1(s14('B')) + ' · ' + f1(s14('C')), 'pop-up · questionário · checkout'],
+      ['Compra CRM pop-up x questionário', per100(rA) + ' x ' + per100(rB), 'em 100 leads (3 a 14 dias)'], ['Explicado pelos disparos', bySends === null ? 'n/d' : fp(bySends), 'da diferença', 1], ['Explicado pelo perfil do lead', bySends === null ? 'n/d' : fp(1 - bySends), 'lead mais quente', 1]]);
     chart('cSavg', { type: 'bar', data: { labels: ST.map(function (s) { return NAME[s]; }), datasets: [
-      { label: 'Emails entregues', backgroundColor: COL.B, data: ST.map(function (s) { return div(a[s].tot.m72, a[s].tot.el); }), stack: 's' },
-      { label: 'WhatsApp/SMS', backgroundColor: COL.crm, data: ST.map(function (s) { return div(a[s].tot.a72, a[s].tot.el); }), stack: 's' }] },
+      { label: 'Emails em 72h', backgroundColor: COL.B, data: ST.map(function (s) { return div(a[s].tot.m72, a[s].tot.el); }), stack: '72' },
+      { label: 'WhatsApp/SMS em 72h', backgroundColor: COL.crm, data: ST.map(function (s) { return div(a[s].tot.a72, a[s].tot.el); }), stack: '72' },
+      { label: 'Total em 14 dias', backgroundColor: COL.base, data: ST.map(function (s) { return s14(s); }), stack: '14' }] },
       options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, title: { display: true, text: 'Disparos por lead' } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + f1(x.raw) + ' por lead'; } } } } } });
     chart('cSline', { type: 'line', data: { labels: BKS.map(function (b) { return b + ' disparos'; }), datasets: ST.map(function (s) { return { label: NAME[s], borderColor: COL[s], backgroundColor: COL[s], tension: .25, spanGaps: true, pointRadius: 4,
       data: BKS.map(function (b) { var x = a[s][b]; return x.el >= MIN ? div(x.cr, x.el) : null; }) }; }) },
@@ -474,74 +580,17 @@
     var head = ['Disparos nas 72h'].concat([].concat.apply([], ST.map(function (s) { return [NAME[s] + ' · leads', NAME[s] + ' · compra CRM']; })));
     var rows = BKS.map(function (b) { return [b].concat([].concat.apply([], ST.map(function (s) { var x = a[s][b]; return [fi(x.el), x.el >= MIN ? per100(div(x.cr, x.el)) + ' em 100' : (x.el ? '<span class="tag">poucos dados</span>' : '')]; }))); });
     rows.push(['Total'].concat([].concat.apply([], ST.map(function (s) { return [fi(a[s].tot.el), per100(rate(s)) + ' em 100']; }))));
-    set('tS', '<table><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r, i) { return '<tr' + (i === rows.length - 1 ? ' class="tot"' : '') + '>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>');
-    set('nS', 'Etapa = a mais avançada até 72h depois da primeira captura. Só entram leads com 14 dias completos e que não compraram nas primeiras 72h; a compra é contada entre 72h e 14 dias, para que os disparos sejam medidos antes do desfecho. ' +
-      'Disparos incluem emails automáticos (ex.: resultado do questionário). "Disparos em 14 dias" para de contar na compra. Linhas com menos de ' + MIN + ' leads ficam fora do gráfico. ' +
-      'A decomposição compara leads com a mesma quantidade de disparos; ela não separa quem recebe mais disparos por ter interagido mais (ex.: carrinho abandonado).');
+    set('tS', tbl(head, rows, '', rows.length - 1));
+    set('nS', 'Base única em cards e gráficos: leads novos com 14 dias completos que não compraram nas primeiras 72h. Etapa = a mais avançada até 72h depois da primeira captura. Disparos = emails entregues + WhatsApp/SMS (inclui automáticos). A compra conta entre 72h e 14 dias. A decomposição não separa quem recebe mais disparos por ter interagido mais (ex.: carrinho abandonado).');
   }
-
-  // ---------- 7. campanhas de lead (Meta)
-  function renderM() {
-    var M = D.M; if (!M) { set('kM', '<div class="empty">Sem dados de campanha. Clique em "Atualizar dados".</div>'); return; }
-    var isLead = function (n) { return n.indexOf('lead') >= 0; };
-    var disp = {}; M.spend.forEach(function (r) { disp[r[1]] = r[3]; });
-    var leadDays = {}; M.spend.forEach(function (r) { if (isLead(r[1]) && r[2] > 0) leadDays[r[0]] = 1; });
-    var same = $('mSameDays').checked && Object.keys(leadDays).length > 0;
-    var inDay = function (d) { return !same || leadDays[d]; };
-    var camp = {}, days = {};
-    function cg(n) { return camp[n] = camp[n] || { n: n, cost: 0, leads: 0, el3: 0, cv3: 0, el7: 0, cv7: 0, cr7: 0, t1d: 0, t3d: 0, cvall: 0, sdtc: 0 }; }
-    function dg(d, g) { var x = days[d] = days[d] || { L: { cost: 0, leads: 0 }, O: { cost: 0, leads: 0 } }; return x[g]; }
-    M.spend.forEach(function (r) { if (!inDay(r[0])) return; cg(r[1]).cost += r[2]; dg(r[0], isLead(r[1]) ? 'L' : 'O').cost += r[2]; });
-    M.leads.forEach(function (r) { if (!inDay(r.dia)) return; var x = cg(r.uc); ['leads', 'el3', 'cv3', 'el7', 'cv7', 'cr7', 't1d', 't3d', 'cvall', 'sdtc'].forEach(function (k) { x[k] += r[k]; }); dg(r.dia, isLead(r.uc) ? 'L' : 'O').leads += r.leads; });
-    var list = Object.keys(camp).map(function (k) { return camp[k]; }).filter(function (x) { return x.cost > 0 || x.leads >= 20; });
-    var G = { L: cg('__L'), O: cg('__O') }; delete camp.__L; delete camp.__O;
-    list.forEach(function (x) { var g = G[isLead(x.n) ? 'L' : 'O']; ['cost', 'leads', 'el3', 'cv3', 'el7', 'cv7', 'cr7', 't1d', 't3d', 'cvall', 'sdtc'].forEach(function (k) { g[k] += x[k]; }); });
-    function cpl(x) { return x.leads ? x.cost / x.leads : null; }
-    function brl(v) { return v === null || v === undefined ? 'n/d' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v); }
-    function r3(x) { return x.el3 ? div(x.cv3, x.el3) : null; } function r7(x) { return x.el7 ? div(x.cv7, x.el7) : null; }
-    function dd(x) { return x.cvall ? f1(x.sdtc / x.cvall / 1440) + ' dias' : 'n/d'; }
-    function p100(v) { return v === null ? 'n/d' : per100(v) + ' em 100'; }
-    var L = G.L, O = G.O, cplL = cpl(L), cplO = cpl(O);
-    cards('kM', [['CPL campanhas de lead', brl(cplL), fi(L.leads) + ' leads | ' + brl(L.cost), 1], ['CPL demais Meta', brl(cplO), fi(O.leads) + ' leads | ' + brl(O.cost), 1],
-      ['Compram em 3 dias', p100(r3(L)) + ' x ' + p100(r3(O)), 'lead x demais'], ['Dias até a compra', dd(L) + ' x ' + dd(O), 'média, lead x demais']]);
-    var diff = function (a, b, inv) { if (a === null || b === null || !b) return ''; var v = a / b - 1; return (v > 0 ? '+' : '') + fp(v); };
-    set('tMcmp', tbl(['Métrica', 'Campanhas de lead', 'Demais Meta', 'Diferença'], [
-      ['Custo com imposto', brl(L.cost), brl(O.cost), ''],
-      ['Leads captados', fi(L.leads), fi(O.leads), ''],
-      ['Custo por lead', brl(cplL), brl(cplO), diff(cplL, cplO)],
-      ['Compram em até 3 dias', p100(r3(L)) + ' (' + fi(L.el3) + ' leads)', p100(r3(O)) + ' (' + fi(O.el3) + ' leads)', diff(r3(L), r3(O))],
-      ['Compram em até 7 dias', p100(r7(L)) + ' (' + fi(L.el7) + ' leads)', p100(r7(O)) + ' (' + fi(O.el7) + ' leads)', diff(r7(L), r7(O))],
-      ['Compram com cupom CRM em 7 dias', L.el7 ? p100(div(L.cr7, L.el7)) : 'n/d', O.el7 ? p100(div(O.cr7, O.el7)) : 'n/d', ''],
-      ['Dias da captura até a compra (média)', dd(L) + ' (' + fi(L.cvall) + ' compras)', dd(O) + ' (' + fi(O.cvall) + ' compras)', '']]));
-    var dk = Object.keys(days).sort();
-    chart('cMcpl', { type: 'line', data: { labels: dk.map(function (d) { return dbr(d).slice(0, 5); }), datasets: [
-      { label: 'Campanhas de lead', data: dk.map(function (d) { var x = days[d].L; return x.leads ? x.cost / x.leads : null; }), borderColor: '#FF8A5B', backgroundColor: '#FF8A5B', tension: .25, spanGaps: true },
-      { label: 'Demais Meta', data: dk.map(function (d) { var x = days[d].O; return x.leads ? x.cost / x.leads : null; }), borderColor: COL.B, backgroundColor: COL.B, tension: .25, spanGaps: true }] },
-      options: { scales: { y: { ticks: { callback: function (v) { return brl(v); } } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + brl(x.raw); } } } } } });
-    chart('cMconv', { type: 'bar', plugins: [labels], data: { labels: ['Em até 3 dias', 'Em até 7 dias'], datasets: [
-      { label: 'Campanhas de lead', backgroundColor: '#FF8A5B', data: [r3(L), r7(L)] }, { label: 'Demais Meta', backgroundColor: COL.B, data: [r3(O), r7(O)] }] },
-      options: { layout: { padding: { top: 20 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { labels: { fmt: function (v) { return per100(v); } } } } });
-    var tb = function (x) { return x.cv7 ? [div(x.t1d, x.cv7), div(x.t3d - x.t1d, x.cv7), div(x.cv7 - x.t3d, x.cv7)] : [null, null, null]; };
-    chart('cMtime', { type: 'bar', data: { labels: ['Campanhas de lead (' + fi(L.cv7) + ' compras)', 'Demais Meta (' + fi(O.cv7) + ' compras)'], datasets: [
-      { label: 'Até 1 dia', backgroundColor: '#19301E', data: [tb(L)[0], tb(O)[0]] }, { label: '1 a 3 dias', backgroundColor: '#6B8E5A', data: [tb(L)[1], tb(O)[1]] }, { label: '3 a 7 dias', backgroundColor: '#D4A04A', data: [tb(L)[2], tb(O)[2]] }] },
-      options: { indexAxis: 'y', scales: { x: { stacked: true, max: 1, ticks: pctTicks() }, y: { stacked: true, grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw); } } } } } });
-    list.sort(function (a, b) { return (isLead(b.n) - isLead(a.n)) || (b.cost - a.cost); });
-    set('tM', '<table><thead><tr><th>Campanha</th><th>Tipo</th><th>Custo c/ imposto</th><th>Leads</th><th>CPL</th><th>Compram em 3 dias</th><th>Compram em 7 dias</th><th>Dias até a compra</th></tr></thead><tbody>' +
-      list.map(function (x) { return '<tr><td>' + (disp[x.n] || x.n) + (x.cost > 0 && !x.leads ? '<span class="tag">sem leads rastreados</span>' : '') + (!x.cost ? '<span class="tag">sem custo na aba</span>' : '') + '</td><td>' + (isLead(x.n) ? 'Lead' : 'Demais') + '</td><td>' + brl(x.cost) + '</td><td>' + fi(x.leads) + '</td><td>' + brl(cpl(x)) + '</td><td>' + p100(r3(x)) + '</td><td>' + p100(r7(x)) + '</td><td>' + dd(x) + '</td></tr>'; }).join('') + '</tbody></table>');
-    var first = Object.keys(leadDays).sort()[0];
-    set('nM', 'Custo da aba Campanhas + ' + fp(M.tax, 1) + ' de imposto. Lead = email novo capturado no site (pop-up ou questionário) cuja primeira captura veio da campanha (utm_campaign). Campanhas com "lead" no nome = campanhas de lead. ' +
-      'Conversão só conta leads com a janela completa (3 ou 7 dias até ontem). "Dias até a compra" usa as compras feitas até agora. ' + (same && first ? 'Período comparado: dias com custo em campanhas de lead (desde ' + dbr(first) + '). ' : '') +
-      'Campanhas marcadas "sem leads rastreados" tiveram custo sem nenhuma captura com a UTM delas no site: confira a UTM ou se a captura é feita fora do site (formulário da Meta).');
-  }
-  window.__renderM = function () { if (D) renderM(); };
 
   // ---------- CSV (sem colunas financeiras)
   window.csv = function (kind) {
     if (!D) return;
     var head, rows;
-    if (kind === 'leads') { head = ['data_primeira_captura', 'primeira_etapa', 'utm_source', 'leads', 'acompanhados_7d', 'compraram_7d', 'compraram_cupom_crm_7d', 'acompanhados_14d', 'compraram_14d', 'compraram_cupom_crm_14d', 'utm_confiavel'];
+    if (kind === 'leads') { head = ['data_primeira_captura', 'primeira_etapa', 'utm_source', 'leads_novos', 'acompanhados_7d', 'compraram_7d', 'compraram_cupom_crm_7d', 'acompanhados_14d', 'compraram_14d', 'compraram_cupom_crm_14d', 'utm_confiavel'];
       rows = D.dailyLeads.map(function (r) { return r.slice(0, 10).concat([r[12]]); }); }
-    else { head = ['data', 'etapa_captura', 'utm_source_captura', 'aquisicoes', 'aquisicoes_cupom_crm']; rows = D.dailyOrders.map(function (r) { return [r[0], NAME[r[1]] || r[1], r[2], r[3], r[4]]; }); }
+    else { head = ['data', 'etapa_captura', 'utm_source_primeira_captura', 'aquisicoes', 'aquisicoes_cupom_crm']; rows = D.dailyOrders.map(function (r) { return [r[0], NAME[r[1]] || r[1], r[2], r[3], r[4]]; }); }
     var esc = function (v) { var s = v === null || v === undefined ? '' : String(v); return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
     var text = [head].concat(rows).map(function (r) { return r.map(esc).join(','); }).join('\n');
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8;' }));
@@ -549,31 +598,35 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-
-  // ---------- ícone "i" com a forma de cálculo de cada gráfico e tabela
+  // ---------- "i": como foi medido
   var HOW = {
-    cDaily: 'Aquisições confirmadas (primeiro pedido WL BR) por dia do checkout, no fuso de Brasília. "Com cupom CRM" = promotion_code na lista de cupons de CRM. Linha = aquisições com cupom CRM ÷ aquisições do dia.',
-    cClass: 'Cada comprador do período entra uma vez, na etapa mais avançada em que deixou o email antes do início da visita de compra: checkout (conta criada antes) > questionário > pop-up. "Sem captura anterior" = nenhuma captura registrada antes da visita; "Sem email" = pedido sem email vinculado no Customer.io.',
-    cShare: 'Para cada etapa: compradores com cupom CRM ÷ total de compradores da etapa no período.',
-    cCrmMix: 'Vendas com cupom CRM do período, separadas pela etapa de captura do comprador. Fatias somam 100%.',
-    cSavg: 'Leads com 14 dias completos que não compraram nas primeiras 72h. Média por lead de emails entregues (delivered_email) e WhatsApp/SMS enviados (sent_action) do Customer.io entre a captura e 72h depois.',
-    cSline: 'Mesmos leads do gráfico ao lado, agrupados pelo nº de disparos nas primeiras 72h. Taxa = leads que compraram com cupom CRM entre 72h e 14 dias ÷ leads do grupo. Grupos com menos de 150 leads ficam de fora.',
-    cSdec: 'Pop-up (real) e Questionário (real) = compra com cupom CRM entre 72h e 14 dias ÷ leads. Barra do meio = taxa do pop-up em cada faixa de disparos, ponderada pela distribuição de disparos do questionário. Se ela ficasse perto do questionário, a diferença viria dos disparos; se fica perto do pop-up real, vem do perfil do lead.',
-    tS: 'Leads = leads com 14 dias completos que não compraram nas primeiras 72h. Compra CRM = compraram com cupom CRM entre 72h e 14 dias ÷ leads da linha.',
-    cCum: 'Leads (emails novos) capturados no período e acompanhados por 14 dias. Para cada momento: compras feitas até ali ÷ compras feitas em até 14 dias. Linha tracejada só com compras com cupom CRM.',
-    cTime: 'Compradores do período por etapa de captura. Tempo = início da visita de compra menos a captura mais recente da etapa. Percentual dentro de cada etapa.',
-    cSrc: 'Leads (emails novos) cuja primeira captura teve aquele utm_source, capturados a partir da data de UTM confiável e com 14 dias completos. Taxa = compraram com cupom CRM em até 14 dias ÷ leads. Cinza = menos de 500 leads.',
-    tSrc: 'Leads acompanhados = emails novos com 14 dias completos. Compraram em 14 dias = qualquer aquisição em até 14 dias da captura. Compraram com cupom CRM = só aquisições com cupom CRM.',
-    tCamp: 'Compradores do período (pop-up, questionário e checkout) pela utm_campaign da captura mais recente da etapa; no checkout, a da sessão do pedido. "Com cupom CRM" = quantos desses usaram cupom CRM.',
-    cAttr: 'Vendas com cupom CRM do período, pela campanha de CRM com o último clique em até 30 dias antes; sem clique, a última abertura; sem abertura, o último envio. Cores = etapa de captura do comprador.',
-    tMcmp: 'Custo = Amount Spent da aba Campanhas + 12,5% de imposto. Leads = emails novos cuja primeira captura no site teve a utm_campaign da campanha. Compram em 3/7 dias = qualquer aquisição até 3/7 dias depois da captura ÷ leads com janela completa. Dias até a compra = média entre captura e compra, só de quem já comprou.',
-    cMcpl: 'Por dia: custo com imposto das campanhas do grupo ÷ emails novos capturados por elas no mesmo dia.',
-    cMconv: 'Leads com janela completa (3 ou 7 dias até ontem) que fizeram qualquer aquisição dentro da janela ÷ leads com janela completa.',
-    cMtime: 'Entre os leads que compraram em até 7 dias: quanto tempo depois da captura a compra aconteceu.',
-    tM: 'Mesmo cálculo da tabela comparativa, campanha a campanha. "Sem leads rastreados" = teve custo, mas nenhum email capturado no site com essa UTM.',
-    cTier: 'Vendas com cupom CRM por etapa. Último contato com email nas 24h antes do checkout, pela tabela de atribuição de cupons: clique > abertura > só envio > nenhum.',
-    cExp: 'Leads do questionário com 14 dias completos e que não compraram nas primeiras 24h. "Recebeu email" = ao menos 1 email entregue entre 1 e 8 dias depois da captura. Taxa = compraram em até 14 dias ÷ leads do grupo.',
-    cPP: 'Leads capturados nos 14 dias antes e nos dias depois do lançamento do retargeting, contados a partir de 24h depois da captura. Taxa = compraram em até 7 dias ÷ leads.'
+    cDaily: 'Aquisições confirmadas (primeiro pedido WL BR) por dia do checkout, fuso de Brasília. "Com cupom CRM" = promotion_code na lista de cupons de CRM. Linha = aquisições com cupom CRM ÷ aquisições do dia.',
+    cNew: 'Emails capturados pela primeira vez no site (pop-up ou questionário) por dia. Novo = sem nenhum registro no Customer.io antes da captura. "Já na base" = primeira captura no site de um email que já tinha registro (ex.: recebeu emails antes).',
+    cNewStep: 'Leads novos do período pela etapa da primeira captura.',
+    cSrcVol: 'Leads novos capturados desde a data de UTM confiável, pelo utm_source da primeira captura.',
+    cSrc: 'Leads novos com 14 dias completos: compraram em até 14 dias ÷ leads. "Com cupom CRM" só conta compras com cupom de CRM. Cinza = menos de 500 leads.',
+    tCampL: 'Leads novos pela utm_campaign da primeira captura (desde a data de UTM confiável). Compram em 14 dias = compraram ÷ leads com 14 dias completos.',
+    tMcmp: 'Só campanhas da Meta (utm_source fb ou campanha VOY_WL_META). Custo = Amount Spent + 12,5%. Leads = leads novos com primeira captura na campanha. Custo por comprador em 7 dias = custo dos dias com leads já com 7 dias completos ÷ compradores em 7 dias. CRM = só compras com cupom CRM.',
+    cMcpl: 'Por dia: custo com imposto do grupo ÷ leads novos capturados pelo grupo no dia.',
+    cMconv: 'Leads novos com janela completa (3 ou 7 dias) que compraram dentro da janela ÷ leads com janela completa.',
+    tM: 'Mesmo cálculo da tabela comparativa, por campanha. "Até hoje" usa todo o custo e todas as compras feitas até ontem.',
+    cCum: 'Leads novos do período com 14 dias completos que compraram em até 14 dias. Para cada momento desde a primeira captura: compras feitas até ali ÷ compras em até 14 dias. Linha tracejada: só compras com cupom CRM.',
+    cTime: 'Compradores do período por etapa mais avançada antes da compra. Tempo = checkout menos a primeira captura do email (pop-up, questionário ou criação de conta).',
+    cHist: 'Para cada comprador (com email): nº de visitas com captura antes da sessão de compra, somando pop-up, questionário e criação de conta. Visita = capturas com menos de 60 min entre si. Linha = média.',
+    cStepHist: 'Para cada etapa, em quantas visitas diferentes o comprador deixou o email ali antes da compra. Checkout = conta criada antes da sessão de compra.',
+    tPrev: 'Compradores pela etapa mais avançada da última visita com captura antes da compra. As colunas mostram o que ele já tinha feito em visitas anteriores.',
+    cRnk: 'Número da sessão de compra do usuário no site (user_session_rank da sessão do pedido).',
+    cHistCrm: 'Compradores agrupados pelo nº de capturas antes da compra: compraram com cupom CRM ÷ compradores do grupo. Grupos com menos de 50 compradores ficam de fora.',
+    cLv: 'Compradores do período (% do total). Verde = etapa mais avançada da última visita antes da compra. Laranja = etapa mais avançada considerando todas as visitas anteriores.',
+    cShare: 'Compradores com cupom CRM ÷ compradores da etapa. Verde/cor da etapa = etapa mais avançada antes da compra; laranja = etapa da última visita.',
+    cCrmMix: 'Vendas com cupom CRM do período pela etapa mais avançada antes da compra.',
+    cSavg: 'Leads novos com 14 dias completos que não compraram nas primeiras 72h. Média por lead de emails entregues e WhatsApp/SMS nas primeiras 72h e total em 14 dias (para de contar na compra).',
+    cSline: 'Mesmos leads, agrupados pelo nº de disparos nas primeiras 72h. Taxa = compraram com cupom CRM entre 72h e 14 dias ÷ leads do grupo (mínimo 150 leads).',
+    cSdec: 'Barra do meio = taxa do pop-up em cada faixa de disparos, ponderada pela distribuição de disparos do questionário. Perto do pop-up real = diferença vem do perfil do lead; perto do questionário = vem dos disparos.',
+    tS: 'Leads novos com 14 dias completos que não compraram nas primeiras 72h; compra CRM entre 72h e 14 dias ÷ leads da linha.',
+    cTier: 'Vendas com cupom CRM pela etapa mais avançada antes da compra. Último contato com email nas 24h antes do checkout: clique > abertura > só envio > nenhum.',
+    cExp: 'Leads novos do questionário com 15 dias completos que não compraram nas primeiras 24h. "Recebeu email" = ao menos 1 email entregue entre 1 e 8 dias após a captura. Taxa = compraram em até 14 dias ÷ leads.',
+    cAttr: 'Vendas com cupom CRM pela campanha de CRM com o último clique em até 30 dias antes; sem clique, última abertura; sem abertura, último envio.'
   };
   function addInfo() {
     Object.keys(HOW).forEach(function (id) {
@@ -595,7 +648,6 @@
     var hb = tipbox.getBoundingClientRect(); if (hb.bottom > window.innerHeight - 8) tipbox.style.top = (r.top - hb.height - 8) + 'px';
   });
   document.addEventListener('mouseout', function (e) { if (e.target.closest && e.target.closest('.info')) tipbox.style.opacity = 0; });
-  addInfo();
 
   // ---------- índice lateral acompanha a rolagem
   var links = [].slice.call(document.querySelectorAll('nav.toc a'));
@@ -607,9 +659,9 @@
   // ---------- início
   google.script.run.withSuccessHandler(function (s) {
     state = s; var p = s.params;
-    $('start').value = p.start; $('end').value = p.end; $('utmFrom').value = p.utmFrom; $('launch').value = p.launch;
+    $('start').value = p.start; $('end').value = p.end; $('utmFrom').value = p.utmFrom;
     if (!s.configured) { status('Informe a chave da API da Nekt (menu Análise CRM WL > Abrir painel) e clique em "Atualizar dados".', 'err'); $('sub').textContent = 'Sem configuração da Nekt'; return; }
-    if (!s.meta) { status('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt (1 a 3 minutos).'); $('sub').textContent = 'Sem dados carregados'; return; }
+    if (!s.meta) { status('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt.'); $('sub').textContent = 'Sem dados carregados'; return; }
     load();
   }).withFailureHandler(function (e) { status(e.message, 'err'); }).getDashboardState();
 })();
