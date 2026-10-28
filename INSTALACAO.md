@@ -127,3 +127,14 @@ Observações:
 - Leads por campanha vêm da Nekt (`buildCampLeadsSql_` em `Sql.gs`): email novo cuja primeira captura no site tem aquela utm_campaign.
 - Campanhas fora da comparação ficam em `CAMP_EXCLUDE_` (`DashboardApi.gs`); hoje: `VOY_WL_META_LEADS_CREATORS_ABO`, que capta leads de creators.
 - Quando a UTM gravada no site difere do nome da campanha, adicione o par em `CAMP_ALIASES_` (`DashboardApi.gs`).
+
+## Disparos de CRM por etapa
+
+- Consulta `buildSendsSql_` (`Sql.gs`), guardada na aba oculta `_dados_disparos`.
+- Etapa = a mais avançada até 72h depois da primeira captura. Disparos = emails entregues (`delivered_email`) + WhatsApp/SMS (`sent_action`) nas primeiras 72h.
+- Desfecho = compra com cupom CRM entre 72h e 14 dias, só para leads com 14 dias completos que não compraram antes de 72h.
+- A decomposição aplica as taxas do pop-up ao mix de disparos do questionário para separar o efeito da quantidade de disparos do efeito do perfil do lead.
+
+## Identidade visual
+
+Mesma identidade dos dashboards Growth Pacing (tema Voy): verde #19301E, coral #FF8A5B, fundo #F7F6F2, fontes Archivo, Inter e JetBrains Mono.

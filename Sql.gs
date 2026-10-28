@@ -239,3 +239,69 @@ SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, uc, COUNT(*) AS leads,
   COUNTIF(c.cts IS NOT NULL) AS cvall, SUM(IF(c.cts IS NOT NULL, dtc, 0)) AS sdtc
 FROM m GROUP BY 1, 2 ORDER BY 1, 2`;
 }
+
+/**
+ * Disparos de CRM x conversão por etapa de captura (marco de 72h).
+ * Etapa = a mais avançada até 72h depois da primeira captura (C checkout > B questionário > A pop-up).
+ * Disparos = emails entregues + ações (WhatsApp/SMS) enviadas nas primeiras 72h.
+ * Desfecho = compra entre 72h e 14 dias, só para quem não comprou antes de 72h e tem 14 dias completos.
+ * Também traz disparos em 14 dias (cortados na compra) para a média descritiva.
+ */
+function buildSendsSql_(cfg, start, end) {
+  assertDate_(start, 'início'); assertDate_(end, 'fim');
+  const endExcl = addDays_(end, 1);
+  return `WITH${sharedCtes_(cfg)},
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+ordall AS (
+  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, p.pc IN (${crmList_()}) AS is_crm,
+    COALESCE(cu0.email, ai.email) AS email, cl.created_ts
+  FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
+  LEFT JOIN promo p ON p.order_id=x.order_id LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio
+  LEFT JOIN cl ON cl.customer_id=x.customer_id
+  WHERE LOWER(x.brand_at_checkout)='voy' AND x.order_taxonomy_business_category='weight_loss' AND INITCAP(REPLACE(x.country,'_',' '))='Brazil'
+    AND SAFE_CAST(x.system_checkout_at AS TIMESTAMP) >= TIMESTAMP('2026-01-01')
+),
+cutoff AS (SELECT TIMESTAMP(CURRENT_DATE('America/Sao_Paulo'), 'America/Sao_Paulo') AS cut),
+leads AS (
+  SELECT email, MIN(ts) AS first_ts, MIN(IF(step='quiz', ts, NULL)) AS fq
+  FROM cap WHERE email LIKE '%@%' GROUP BY email
+  HAVING MIN(ts) >= TIMESTAMP('${start} 00:00:00', 'America/Sao_Paulo') AND MIN(ts) < TIMESTAMP('${endExcl} 00:00:00', 'America/Sao_Paulo')
+),
+ck AS (SELECT email, MIN(LEAST(COALESCE(created_ts, cts), cts)) AS ck_ts FROM ordall WHERE order_context IN ('acquisition','unconfirmed-acquisition') AND email IS NOT NULL GROUP BY 1),
+pb AS (SELECT email, MIN(cts) AS first_buy FROM ordall WHERE is_confirmed AND order_context NOT LIKE 'unconfirmed%' AND email IS NOT NULL GROUP BY 1),
+cv AS (
+  SELECT l.email, ARRAY_AGG(STRUCT(o.cts AS cts, IFNULL(o.is_crm, FALSE) AS is_crm) ORDER BY o.cts LIMIT 1)[OFFSET(0)] AS c
+  FROM leads l JOIN ordall o ON o.email=l.email AND o.is_confirmed AND o.order_context='acquisition' AND o.cts >= l.first_ts GROUP BY l.email
+),
+msg AS (
+  SELECT LOWER(TRIM(customer_identifiers.email)) AS email, TIMESTAMP_SECONDS(timestamp) AS ts, type='delivered_email' AS is_mail
+  FROM ${tbl_(cfg, 'wl_customer_io_activities')}
+  WHERE type IN ('delivered_email','sent_action') AND timestamp >= UNIX_SECONDS(TIMESTAMP('${start}')) AND customer_identifiers.email IS NOT NULL
+),
+base AS (
+  SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c,
+    CASE WHEN ck.ck_ts <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'C' WHEN l.fq <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'B' ELSE 'A' END AS st,
+    l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
+  FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email CROSS JOIN cutoff
+  WHERE pb.first_buy IS NULL OR pb.first_buy >= l.first_ts
+),
+cnt AS (
+  SELECT b.email,
+    COUNTIF(m.ts > b.first_ts AND m.ts <= b.lm AND m.is_mail) AS m72, COUNTIF(m.ts > b.first_ts AND m.ts <= b.lm AND NOT m.is_mail) AS a72,
+    COUNTIF(m.ts > b.first_ts AND m.ts <= LEAST(TIMESTAMP_ADD(b.first_ts, INTERVAL 14 DAY), IFNULL(b.c.cts, TIMESTAMP('2100-01-01')))) AS s14
+  FROM base b JOIN msg m ON m.email=b.email AND m.ts > b.first_ts AND m.ts <= TIMESTAMP_ADD(b.first_ts, INTERVAL 14 DAY)
+  GROUP BY b.email
+),
+k AS (
+  SELECT b.*, IFNULL(n.m72,0) AS m72, IFNULL(n.a72,0) AS a72, IFNULL(n.s14,0) AS s14, IFNULL(n.m72,0)+IFNULL(n.a72,0) AS t72,
+    (b.c.cts IS NULL OR b.c.cts > b.lm) AS in_l, DATE(b.first_ts,'America/Sao_Paulo') AS d
+  FROM base b LEFT JOIN cnt n ON n.email=b.email
+)
+SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, st,
+  CASE WHEN t72=0 THEN '0' WHEN t72<=2 THEN '1-2' WHEN t72<=5 THEN '3-5' WHEN t72<=9 THEN '6-9' ELSE '10+' END AS bk,
+  COUNT(*) AS n_all, COUNTIF(e14) AS n14, SUM(IF(e14, s14, 0)) AS s14_sum,
+  COUNTIF(e14 AND in_l) AS el, SUM(IF(e14 AND in_l, m72, 0)) AS m72_sum, SUM(IF(e14 AND in_l, a72, 0)) AS a72_sum,
+  COUNTIF(e14 AND in_l AND c.cts IS NOT NULL AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cv,
+  COUNTIF(e14 AND in_l AND c.is_crm AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cr
+FROM k GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
+}

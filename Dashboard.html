@@ -4,63 +4,73 @@
 <base target="_top">
 <meta charset="utf-8">
 <title>Captura de email e vendas via CRM (WL BR)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root { --bg:#f5f6f8; --card:#fff; --ink:#1f2328; --mut:#5f6368; --line:#e1e4e8; --navy:#1f3864; --blue:#1a73e8; --green:#188038; --red:#c5221f; }
+  :root { --primary:#19301E; --primary2:#3E6B47; --accent:#FF8A5B; --soft:#E7EFE8; --softline:#CFE0D3;
+    --paper:#F7F6F2; --card:#FFFFFF; --line:#E6E4DD; --line2:#EFEEE8; --ink:#182223; --mut:#5E6B6A; --dim:#94A0A0;
+    --pos:#2F8F5B; --pos-bg:#E3F2E8; --neg:#C0483C; --neg-bg:#FAE7E4; --warn:#B7791F; --warn-bg:#F6E7C9; }
   * { box-sizing:border-box; }
-  body { margin:0; font-family:Arial, Helvetica, sans-serif; font-size:14px; color:var(--ink); background:var(--bg); line-height:1.5; }
-  header { background:var(--navy); color:#fff; padding:18px 24px; }
-  header h1 { margin:0; font-size:20px; }
-  header .sub { opacity:.85; font-size:13px; margin-top:4px; }
-  .controls { background:#fff; border-bottom:1px solid var(--line); padding:12px 24px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; position:sticky; top:0; z-index:5; }
-  .controls label { display:block; font-weight:bold; font-size:11px; color:var(--mut); margin-bottom:3px; text-transform:uppercase; letter-spacing:.3px; }
-  .controls input { padding:6px 8px; border:1px solid var(--line); border-radius:4px; font-size:13px; }
-  button { padding:7px 12px; border:0; border-radius:4px; cursor:pointer; font-size:13px; }
-  .primary { background:var(--blue); color:#fff; } .secondary { background:#e8f0fe; color:var(--blue); } .ghost { background:#f1f3f4; color:var(--ink); }
+  body { margin:0; font-family:'Inter', system-ui, sans-serif; font-size:14px; color:var(--ink); background:var(--paper); line-height:1.45; -webkit-font-smoothing:antialiased; }
+  header { background:var(--paper); padding:16px 24px 6px; }
+  header h1 { margin:0; font-family:'Archivo', sans-serif; font-weight:800; font-size:20px; letter-spacing:-.02em; color:var(--primary); }
+  header .sub { color:var(--mut); font-size:12px; margin-top:3px; }
+  .controls { background:var(--paper); border-bottom:1px solid var(--line); padding:10px 24px 12px; display:flex; flex-wrap:wrap; gap:14px; align-items:flex-end; position:sticky; top:0; z-index:5; }
+  .controls label { display:block; font-weight:600; font-size:11px; color:var(--dim); margin-bottom:3px; text-transform:uppercase; letter-spacing:.03em; }
+  .controls input { padding:6px 8px; border:1px solid var(--line); border-radius:8px; font-size:12px; font-family:'JetBrains Mono', monospace; background:var(--card); color:var(--ink); }
+  button { padding:7px 12px; border:1px solid transparent; border-radius:8px; cursor:pointer; font-size:12px; font-family:'Inter', sans-serif; font-weight:600; }
+  .primary { background:var(--primary); color:#fff; } .primary:hover { background:var(--primary2); }
+  .secondary { background:var(--card); color:var(--primary); border-color:var(--line); } .secondary:hover { border-color:var(--primary); }
+  .ghost { background:var(--card); color:var(--mut); border-color:var(--line); } .ghost:hover { color:var(--ink); }
   button:disabled { opacity:.5; cursor:default; }
-  .presets button { padding:6px 9px; font-size:12px; margin-right:3px; }
+  .presets button { padding:6px 10px; margin-right:3px; font-family:'JetBrains Mono', monospace; font-weight:500; }
   details.adv { font-size:12px; } details.adv summary { cursor:pointer; color:var(--mut); }
   details.adv .row { display:flex; gap:10px; margin-top:6px; }
-  #status { padding:8px 24px; font-size:12px; color:var(--mut); } #status.err { color:var(--red); } #status.ok { color:var(--green); }
-  .layout { display:grid; grid-template-columns:220px 1fr; gap:24px; max-width:1280px; margin:0 auto; padding:16px 24px 60px; }
-  nav.toc { position:sticky; top:96px; align-self:start; font-size:13px; }
-  nav.toc a { display:block; color:var(--mut); text-decoration:none; padding:6px 10px; border-left:3px solid transparent; }
-  nav.toc a:hover { color:var(--ink); } nav.toc a.on { color:var(--navy); border-left-color:var(--navy); font-weight:bold; }
+  #status { padding:8px 24px; font-size:12px; color:var(--mut); } #status.err { color:var(--neg); } #status.ok { color:var(--pos); }
+  .layout { display:grid; grid-template-columns:230px 1fr; gap:24px; max-width:1400px; margin:0 auto; padding:12px 24px 60px; }
+  nav.toc { position:sticky; top:96px; align-self:start; font-size:12.5px; }
+  nav.toc a { display:block; color:var(--mut); text-decoration:none; padding:6px 10px; border-radius:8px; margin-bottom:2px; }
+  nav.toc a:hover { color:var(--ink); } nav.toc a.on { color:#fff; background:var(--primary); font-weight:600; }
   main { min-width:0; }
-  .chapter { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px 24px; margin-bottom:18px; scroll-margin-top:100px; }
-  .chapter .num { font-size:12px; font-weight:bold; color:var(--blue); text-transform:uppercase; letter-spacing:.5px; }
-  .chapter h2 { margin:4px 0 8px; font-size:20px; line-height:1.3; color:var(--navy); }
-  .chapter .lead { font-size:15px; margin:0 0 14px; max-width:880px; }
-  .chapter h3 { font-size:14px; margin:18px 0 4px; }
-  .howto { font-size:12px; color:var(--mut); margin:4px 0 10px; }
-  .callout { background:#f1f6fe; border-left:4px solid var(--blue); padding:10px 14px; border-radius:4px; margin:14px 0 0; font-size:13px; }
-  .callout.warn { background:#fef7e0; border-left-color:#f9ab00; }
-  .kpis { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin:6px 0 16px; }
-  .kpi { border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
-  .kpi .l { color:var(--mut); font-size:12px; }
-  .kpi.hl { border-color:var(--blue); background:#f5f9ff; } .kpi .v.sm { font-size:18px; word-break:break-word; }
-  .kpis.dark .kpi { border-color:rgba(255,255,255,.25); } .kpis.dark .kpi .l, .kpis.dark .kpi .d { color:#c9d3e6; } .kpis.dark { margin:0; }
-  .foot { font-size:12px; color:var(--mut); margin-top:10px; } .kpi .v { font-size:26px; font-weight:bold; margin-top:2px; } .kpi .d { color:var(--mut); font-size:12px; }
-  .two { display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); }
-  .chartbox { position:relative; height:300px; } .chartbox.tall { height:400px; } .chartbox.short { height:240px; }
-  .summary { background:var(--navy); color:#fff; border-radius:10px; padding:20px 24px; margin-bottom:18px; }
-  .summary h2 { margin:0 0 8px; font-size:18px; } .summary ol { margin:0; padding-left:20px; } .summary li { margin:6px 0; font-size:15px; }
-  table { border-collapse:collapse; width:100%; font-size:13px; }
-  th { background:#f1f3f4; color:var(--ink); padding:7px 8px; text-align:right; font-weight:bold; border-bottom:2px solid var(--line); }
-  th:first-child, td:first-child { text-align:left; }
-  td { padding:6px 8px; border-bottom:1px solid #eee; text-align:right; } tr.tot td { font-weight:bold; background:#fafafa; }
-  .tablewrap { overflow-x:auto; }
-  table.txt td, table.txt th { text-align:left; } table.txt td:first-child { white-space:nowrap; font-weight:bold; }
+  .chapter { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:20px 22px; margin-bottom:16px; scroll-margin-top:100px; }
   .chapter .num { display:none; }
-  .glossary dt { font-weight:bold; margin-top:10px; } .glossary dd { margin:2px 0 0 0; color:#3c4043; }
-  .tag { display:inline-block; font-size:11px; padding:1px 6px; border-radius:8px; background:#fce8e6; color:var(--red); margin-left:4px; }
+  .chapter h2 { margin:0 0 10px; font-family:'Archivo', sans-serif; font-weight:700; font-size:16px; color:var(--primary); }
+  .chapter h3 { font-family:'Archivo', sans-serif; font-weight:700; font-size:12.5px; color:var(--primary); margin:18px 0 4px; }
+  .howto { font-size:11px; color:var(--dim); margin:2px 0 8px; }
+  .callout { background:var(--soft); border-left:3px solid var(--primary); padding:10px 14px; border-radius:8px; margin:14px 0 0; font-size:12.5px; }
+  .callout.warn { background:var(--warn-bg); border-left-color:var(--warn); color:#5c3d0a; }
+  .kpis { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); margin:6px 0 14px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-top:3px solid var(--primary); border-radius:12px; padding:12px 14px; }
+  .kpi .l { color:var(--mut); font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+  .kpi .v { font-family:'Archivo', sans-serif; font-weight:800; font-size:24px; letter-spacing:-.02em; margin:6px 0 2px; color:var(--ink); }
+  .kpi .v.sm { font-size:16px; word-break:break-word; } .kpi .d { color:var(--mut); font-size:11px; }
+  .kpi.hl { border-top-color:var(--accent); background:#FFF6F1; }
+  .summary { background:var(--primary); color:#fff; border-radius:12px; padding:18px 22px; margin-bottom:16px; }
+  .summary h2 { margin:0 0 10px; font-family:'Archivo', sans-serif; font-weight:700; font-size:15px; }
+  .kpis.dark { margin:0; } .kpis.dark .kpi { background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18); border-top-color:var(--accent); }
+  .kpis.dark .kpi .l, .kpis.dark .kpi .d { color:#C9D8CC; } .kpis.dark .kpi .v { color:#fff; }
+  .foot { font-size:11px; color:var(--dim); margin-top:10px; }
+  .two { display:grid; gap:18px; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); }
+  .chartbox { position:relative; height:300px; } .chartbox.tall { height:400px; } .chartbox.short { height:250px; }
+  table { border-collapse:collapse; width:100%; font-size:12px; }
+  th { background:var(--primary); color:#fff; font-family:'Archivo', sans-serif; font-weight:600; font-size:10px; text-transform:uppercase; letter-spacing:.02em; padding:7px 8px; text-align:right; white-space:nowrap; }
+  th:first-child { border-top-left-radius:8px; } th:last-child { border-top-right-radius:8px; }
+  td { padding:6px 8px; border-top:1px solid var(--line2); text-align:right; font-family:'JetBrains Mono', monospace; font-size:11.5px; }
+  th:first-child, td:first-child { text-align:left; } td:first-child { font-family:'Inter', sans-serif; font-weight:600; }
+  tr.tot td { font-weight:700; background:var(--soft); }
+  .tablewrap { overflow-x:auto; }
+  table.txt td, table.txt th { text-align:left; } table.txt td { font-family:'Inter', sans-serif; } table.txt td:first-child { white-space:nowrap; }
+  .tag { display:inline-block; font-family:'Inter', sans-serif; font-size:10.5px; font-weight:600; padding:1px 6px; border-radius:5px; background:var(--neg-bg); color:var(--neg); margin-left:4px; }
   .empty { color:var(--mut); font-style:italic; }
+  input[type=checkbox] { accent-color:var(--primary); }
   @media (max-width:900px){ .layout{grid-template-columns:1fr;} nav.toc{display:none;} .two{grid-template-columns:1fr;} }
 </style>
 </head>
 <body>
 <header>
-  <h1>Captura de email e vendas via CRM: aquisição WL BR (Voy)</h1>
+  <h1>Captura de email e vendas via CRM · Voy BR</h1>
   <div class="sub" id="sub">Carregando...</div>
 </header>
 
@@ -91,12 +101,13 @@
     <a href="#c1">1. Peso do CRM nas vendas</a>
     <a href="#c2">2. Onde o email é capturado</a>
     <a href="#c3">3. Quem compra com cupom CRM</a>
-    <a href="#c4">4. Velocidade da compra</a>
-    <a href="#c5">5. Canais de origem</a>
-    <a href="#c6">6. Campanhas</a>
-    <a href="#cM">7. Campanhas de lead (Meta)</a>
-    <a href="#c7">8. O email está perto da compra?</a>
-    <a href="#c8">9. Próximo passo</a>
+    <a href="#cS">4. Disparos por etapa</a>
+    <a href="#c4">5. Velocidade da compra</a>
+    <a href="#c5">6. Canais de origem</a>
+    <a href="#c6">7. Campanhas</a>
+    <a href="#cM">8. Campanhas de lead (Meta)</a>
+    <a href="#c7">9. O email está perto da compra?</a>
+    <a href="#c8">10. Próximo passo</a>
     <a href="#c9">Como ler os números</a>
   </nav>
 
@@ -108,7 +119,7 @@
     <section class="chapter" id="c1">
       <div class="num">1. Peso do CRM nas vendas</div>
       <h2 id="h1"></h2><div class="kpis" id="k1"></div>
-            <div class="howto">Barras: aquisições por dia (azul = com cupom de CRM, cinza = demais). Linha vermelha: % das aquisições do dia com cupom de CRM (eixo da direita).</div>
+            <div class="howto">Barras: aquisições por dia (laranja = com cupom de CRM, verde-claro = demais). Linha: % das aquisições do dia com cupom de CRM (eixo da direita).</div>
       <div class="chartbox"><canvas id="cDaily"></canvas></div>
     </section>
 
@@ -127,6 +138,21 @@
         <div><h3>De cada 100 compradores da etapa, quantos usaram cupom CRM</h3><div class="chartbox short"><canvas id="cShare"></canvas></div></div>
         <div><h3>De onde vêm as vendas com cupom CRM</h3><div class="chartbox short"><canvas id="cCrmMix"></canvas></div></div>
       </div>
+    </section>
+
+    <section class="chapter" id="cS">
+      <h2>4. Disparos de CRM por etapa: lead mais quente ou mais comunicação?</h2>
+      <div class="kpis" id="kS"></div>
+      <div class="two">
+        <div><h3>Disparos por lead nas primeiras 72h</h3><div class="howto">Média por lead que ainda não tinha comprado: emails entregues e WhatsApp/SMS enviados.</div><div class="chartbox short"><canvas id="cSavg"></canvas></div></div>
+        <div><h3>Compra com cupom CRM por quantidade de disparos</h3><div class="howto">De cada 100 leads, quantos compraram com cupom CRM entre 3 e 14 dias, pelo nº de disparos nas primeiras 72h.</div><div class="chartbox short"><canvas id="cSline"></canvas></div></div>
+      </div>
+      <h3>Quanto da diferença entre questionário e pop-up vem dos disparos</h3>
+      <div class="howto">Barra do meio: conversão do pop-up se esses leads recebessem a mesma quantidade de disparos que os do questionário.</div>
+      <div class="chartbox short"><canvas id="cSdec"></canvas></div>
+      <h3>Leads e compra com cupom CRM por etapa e nº de disparos</h3>
+      <div class="tablewrap" id="tS"></div>
+      <div class="foot" id="nS"></div>
     </section>
 
     <section class="chapter" id="c4">
@@ -160,7 +186,7 @@
     </section>
 
     <section class="chapter" id="cM">
-      <h2>7. Campanhas de lead na Meta x demais campanhas da Meta</h2>
+      <h2>8. Campanhas de lead na Meta x demais campanhas da Meta</h2>
       <div class="howto"><label><input type="checkbox" id="mSameDays" checked onchange="window.__renderM()"> Comparar só nos dias em que as campanhas de lead tiveram custo</label></div>
       <div class="kpis" id="kM"></div>
       <div class="tablewrap" id="tMcmp"></div>
@@ -212,10 +238,10 @@
   var STEPS = ['A', 'B', 'C', 'D', 'X'];
   var NAME = { A: 'Pop-up', B: 'Questionário', C: 'Checkout', D: 'Sem captura anterior', X: 'Sem email' };
   var NAME_LONG = { A: 'só no pop-up', B: 'no questionário', C: 'no checkout (conta criada antes)', D: 'sem captura anterior à compra', X: 'sem email vinculado' };
-  var COL = { A: '#4285f4', B: '#34a853', C: '#f9ab00', D: '#9aa0a6', X: '#d2d5d9', crm: '#1a73e8', non: '#c8ccd1', line: '#c5221f' };
+  var COL = { A: '#2F6F8F', B: '#19301E', C: '#D4A04A', D: '#94A0A0', X: '#CFD6D2', crm: '#FF8A5B', non: '#CFE0D3', line: '#C0483C', alt: '#2F6F8F' };
   var TIERS = ['1 clique ate 24h', '2 abertura ate 24h', '3 envio ate 24h', '4 sem toque ate 24h'];
   var TIER_L = ['Clicou no email', 'Abriu o email', 'Só recebeu', 'Sem contato'];
-  var TIER_C = ['#188038', '#81c995', '#fdd663', '#dadce0'];
+  var TIER_C = ['#19301E', '#6B8E5A', '#D4A04A', '#E6E4DD'];
   var BK = ['1 ate 1h', '2 1h a 6h', '3 6h a 24h', '4 1 a 3 dias', '5 3 a 7 dias', '6 7 a 14 dias', '7 14 a 30 dias', '8 mais de 30 dias'];
   var BK_L = ['até 1h', '1h a 6h', '6h a 24h', '1 a 3 dias', '3 a 7 dias', '7 a 14 dias', '14 a 30 dias', 'mais de 30 dias'];
   var SRC = ['fb', 'google', 'instagram', 'influencer', 'tiktok', 'affiliates', 'crm', '(sem utm)', 'outros'];
@@ -227,7 +253,7 @@
   function fi(x) { return nf0.format(Math.round(x || 0)); }
   function fp(x, d) { d = d === undefined ? 0 : d; return new Intl.NumberFormat('pt-BR', { style: 'percent', minimumFractionDigits: d, maximumFractionDigits: d }).format(x || 0); }
   function f1(x) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(x || 0); }
-  function per100(x) { var v = (x || 0) * 100; return v >= 10 ? fi(v) : f1(v); }
+  function per100(x) { var v = (x || 0) * 100; if (v >= 10) return fi(v); if (v >= 1 || v === 0) return f1(v); return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(v); }
   function dbr(iso) { var p = String(iso).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
   function div(a, b) { return b ? a / b : 0; }
   function $(id) { return document.getElementById(id); }
@@ -239,7 +265,8 @@
   function cards(id, arr) { set(id, arr.map(function (k) { return '<div class="kpi' + (k[3] ? ' hl' : '') + '"><div class="l">' + k[0] + '</div><div class="v' + (String(k[1]).length > 16 ? ' sm' : '') + '">' + k[1] + '</div><div class="d">' + (k[2] || '') + '</div></div>'; }).join('')); }
   function tbl(head, rows) { return '<table class="txt"><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r) { return '<tr>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>'; }
 
-  Chart.defaults.font.family = 'Arial, Helvetica, sans-serif'; Chart.defaults.font.size = 12; Chart.defaults.locale = 'pt-BR'; Chart.defaults.color = '#3c4043';
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif"; Chart.defaults.font.size = 11; Chart.defaults.locale = 'pt-BR'; Chart.defaults.color = '#5E6B6A'; Chart.defaults.borderColor = '#EFEEE8';
+  Chart.defaults.plugins.tooltip.backgroundColor = '#19301E'; Chart.defaults.plugins.tooltip.padding = 9; Chart.defaults.plugins.tooltip.cornerRadius = 9; Chart.defaults.elements.bar.borderRadius = 4;
   Chart.defaults.plugins.legend.labels.boxWidth = 12;
   function chart(id, cfg) {
     if (charts[id]) charts[id].destroy();
@@ -249,7 +276,7 @@
   function pctTicks(d) { return { callback: function (v) { return fp(v, d || 0); } }; }
   // rótulo do valor na ponta da barra
   var labels = { id: 'labels', afterDatasetsDraw: function (c, a, opt) {
-    if (!opt || !opt.fmt) return; var ctx = c.ctx; ctx.save(); ctx.font = 'bold 11px Arial'; ctx.fillStyle = '#1f2328';
+    if (!opt || !opt.fmt) return; var ctx = c.ctx; ctx.save(); ctx.font = "600 10.5px 'JetBrains Mono', monospace"; ctx.fillStyle = '#182223';
     c.data.datasets.forEach(function (ds, di) { var m = c.getDatasetMeta(di); if (m.hidden) return;
       m.data.forEach(function (el, i) { var v = ds.data[i]; if (v === null || v === undefined) return; var t = opt.fmt(v, i, di);
         if (c.options.indexAxis === 'y') { ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(t, el.x + 6, el.y); }
@@ -300,7 +327,7 @@
     $('sub').textContent = 'Aquisições confirmadas de ' + dbr(m.start) + ' a ' + dbr(m.end) + (m.lastRefresh ? ' | dados atualizados em ' + m.lastRefresh : '');
     var w = [];
     if (m.start < m.dataStart) w.push('Histórico de captura começa em ' + dbr(m.dataStart) + '.');
-    if (m.end > addDays(m.today, -15)) w.push('Leads dos últimos 14 dias ainda não entram nas taxas de conversão (4, 5 e 7).');
+    if (m.end > addDays(m.today, -15)) w.push('Leads dos últimos 14 dias ainda não entram nas taxas de conversão (blocos 4, 5, 6, 8 e 9).');
     set('warn', w.map(function (x) { return '<div class="callout warn" style="margin:0 0 12px">' + x + '</div>'; }).join(''));
 
     // ---- 1
@@ -336,11 +363,11 @@
     // ---- 4
     var b = D.L.buckets || {}, has4 = (b.s_b14d || 0) > 0;
     var d1 = div(b.s_b1d, b.s_b14d), d7 = div(b.s_b7d, b.s_b14d), c1 = div(b.s_c1d, b.s_c14d), c7 = div(b.s_c7d, b.s_c14d);
-    set('h4', '4. Velocidade da compra depois da captura');
+    set('h4', '5. Velocidade da compra depois da captura');
     cards('k4', has4 ? [['Compram em até 24h', fp(d1), 'dos leads que compraram em 14 dias', 1], ['Compram em até 7 dias', fp(d7), 'dos leads que compraram em 14 dias'], ['Cupom CRM em até 24h', fp(c1), 'das vendas CRM em 14 dias'], ['Metade do questionário compra em', hours(D.O.time.B.q.p50), 'depois da captura', 1]] : [['Sem dados', 'n/d', 'escolha um período que termine 15 dias antes de hoje']]);
     var cumL = ['1 hora', '6 horas', '1 dia', '3 dias', '7 dias', '14 dias'];
     chart('cCum', { type: 'line', data: { labels: cumL, datasets: [
-      { label: 'Todas as compras', data: [b.s_b1h, b.s_b6h, b.s_b1d, b.s_b3d, b.s_b7d, b.s_b14d].map(function (x) { return div(x, b.s_b14d); }), borderColor: '#1f3864', backgroundColor: '#1f3864', tension: .25 },
+      { label: 'Todas as compras', data: [b.s_b1h, b.s_b6h, b.s_b1d, b.s_b3d, b.s_b7d, b.s_b14d].map(function (x) { return div(x, b.s_b14d); }), borderColor: '#19301E', backgroundColor: '#19301E', tension: .25 },
       { label: 'Compras com cupom CRM', data: [null, null, b.s_c1d, b.s_c3d, b.s_c7d, b.s_c14d].map(function (x) { return x === null || x === undefined ? null : div(x, b.s_c14d); }), borderColor: COL.crm, backgroundColor: COL.crm, borderDash: [5, 4], tension: .25, spanGaps: true }] },
       options: { scales: { y: { min: 0, max: 1, ticks: pctTicks() }, x: { title: { display: true, text: 'Tempo desde a captura' } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw) + ' já tinham comprado'; } } } } } });
     chart('cTime', { type: 'bar', data: { labels: BK_L, datasets: ['A', 'B', 'C'].map(function (k) { return { label: NAME[k], backgroundColor: COL[k], data: BK.map(function (x) { return div(O.time[k][x], O.time[k].n); }) }; }) },
@@ -350,9 +377,9 @@
     var sr = srcRows(), media = srcRows().filter(function (r) { return ['crm', 'outros', '(sem utm)'].indexOf(r.u) < 0 && r.n >= MIN_N; });
     var best = media.slice().sort(function (a, b2) { return b2.p - a.p; })[0], worst = media.slice().sort(function (a, b2) { return a.p - b2.p; })[0];
     var tot5 = sr.reduce(function (a, r) { return { n: a.n + r.n, k: a.k + r.p * r.n }; }, { n: 0, k: 0 }), avg5 = div(tot5.k, tot5.n);
-    set('h5', '5. Canais de origem dos leads');
+    set('h5', '6. Canais de origem dos leads');
     cards('k5', [['Média geral', per100(avg5) + ' em 100', 'leads compram com cupom CRM em 14 dias', 1]].concat(best ? [['Melhor canal', SRC_L[best.u], per100(best.p) + ' em 100 leads'], ['Pior canal', SRC_L[worst.u], per100(worst.p) + ' em 100 leads']] : []).concat([['Leads acompanhados', fi(tot5.n), 'desde ' + dbr(m.utmFrom)]]));
-    chart('cSrc', { type: 'bar', plugins: [labels], data: { labels: sr.map(function (r) { return SRC_L[r.u]; }), datasets: [{ data: sr.map(function (r) { return r.p; }), backgroundColor: sr.map(function (r) { return r.n < MIN_N ? '#dadce0' : (r.u === 'crm' ? '#a0c3ff' : COL.crm); }) }] },
+    chart('cSrc', { type: 'bar', plugins: [labels], data: { labels: sr.map(function (r) { return SRC_L[r.u]; }), datasets: [{ data: sr.map(function (r) { return r.p; }), backgroundColor: sr.map(function (r) { return r.n < MIN_N ? '#E6E4DD' : (r.u === 'crm' ? '#FFC2A8' : COL.crm); }) }] },
       options: { layout: { padding: { top: 22 } }, plugins: { legend: { display: false }, labels: { fmt: function (v, i) { return per100(v) + (sr[i].n < MIN_N ? ' *' : ''); } }, tooltip: { callbacks: { label: function (x) { var r = sr[x.dataIndex]; return per100(r.p) + ' em cada 100 leads (' + fi(r.n) + ' leads)'; } } } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } } } });
     set('tSrc', '<table style="margin-top:12px"><thead><tr><th>Canal</th><th>Leads acompanhados</th><th>Compraram em 14 dias (qualquer cupom)</th><th>Compraram com cupom CRM</th></tr></thead><tbody>' +
       sr.map(function (r) { return '<tr><td>' + SRC_L[r.u] + (r.n < MIN_N ? '<span class="tag">poucos dados</span>' : '') + '</td><td>' + fi(r.n) + '</td><td>' + per100(r.pAll) + ' em 100</td><td>' + per100(r.p) + ' em 100</td></tr>'; }).join('') + '</tbody></table>');
@@ -361,18 +388,19 @@
     var co = O.campaignOrder.slice(0, 10), top6 = co.filter(function (x) { return x !== '(sem utm)'; })[0];
     var ca = O.campAttrOrder.slice(0, 10), crmAttrTot = O.campAttrOrder.reduce(function (a, k) { return a + (O.campAttrCount[k] || 0); }, 0);
     var topAttr = ca[0], topAttrShare = div(O.campAttrCount[topAttr] || 0, crmAttrTot);
-    set('h6', '6. Campanhas');
+    set('h6', '7. Campanhas');
     cards('k6', [['Campanha CRM nº 1', topAttr || 'n/d', fp(topAttrShare) + ' das vendas com cupom', 1], ['Top 3 campanhas CRM', fp(div(ca.slice(0, 3).reduce(function (a, k) { return a + (O.campAttrCount[k] || 0); }, 0), crmAttrTot)), 'das vendas com cupom'], ['Campanha de mídia nº 1', top6 || 'n/d', top6 ? fi(O.campaigns[top6].A + O.campaigns[top6].B + O.campaigns[top6].C) + ' compradores' : '']]);
     set('tCamp', '<table><thead><tr><th>UTM campaign da captura</th><th>Pop-up</th><th>Questionário</th><th>Checkout</th><th>Total</th><th>Com cupom CRM</th></tr></thead><tbody>' +
       co.map(function (n) { var x = O.campaigns[n], t = x.A + x.B + x.C, cr = x.Acrm + x.Bcrm + x.Ccrm; return '<tr><td>' + n + '</td><td>' + fi(x.A) + '</td><td>' + fi(x.B) + '</td><td>' + fi(x.C) + '</td><td>' + fi(t) + '</td><td>' + fi(cr) + ' (' + per100(div(cr, t)) + ' em 100)</td></tr>'; }).join('') + '</tbody></table>');
     chart('cAttr', { type: 'bar', data: { labels: ca, datasets: ['A', 'B', 'C', 'D', 'X'].map(function (k) { return { label: NAME[k], backgroundColor: COL[k], data: ca.map(function (x) { return (O.campAttr[x] || {})[k] || 0; }) }; }) },
       options: { indexAxis: 'y', scales: { x: { stacked: true, title: { display: true, text: 'Vendas com cupom CRM' } }, y: { stacked: true, grid: { display: false }, ticks: { callback: function (v) { var l = this.getLabelForValue(v); return l.length > 42 ? l.slice(0, 41) + '…' : l; } } } } } });
 
+    renderS();
     renderM();
     // ---- 7
     var tB = O.tiers.B, clickB = div(tB[TIERS[0]] || 0, tB.crm), noTouchB = div(tB[TIERS[3]] || 0, tB.crm), onlySentB = div(tB[TIERS[2]] || 0, tB.crm);
     var eB = land('B', 'sim'), nB = land('B', 'nao'), pe = div(eB.l_cv14, eB.l_el14), pn = div(nB.l_cv14, nB.l_el14);
-    set('h7', '8. O email está perto da compra?');
+    set('h7', '9. O email está perto da compra?');
     cards('k7', [['Clicaram no email', fp(clickB), 'nas 24h antes da compra*', 1], ['Só receberam', fp(onlySentB), 'sem abrir*'], ['Sem contato no dia', fp(noTouchB), 'compraram com cupom sem email*'], ['Recebeu email x não recebeu', per100(pe) + ' x ' + per100(pn), 'em 100 leads compram em 14 dias**', 1]]);
     chart('cTier', { type: 'bar', data: { labels: ['A', 'B', 'C', 'D'].map(function (k) { return NAME[k]; }), datasets: TIERS.map(function (t, i) { return { label: TIER_L[i], backgroundColor: TIER_C[i], data: ['A', 'B', 'C', 'D'].map(function (k) { return div(O.tiers[k][t] || 0, O.tiers[k].crm); }) }; }) },
       options: { indexAxis: 'y', scales: { x: { stacked: true, max: 1, ticks: pctTicks() }, y: { stacked: true, grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw); } } } } } });
@@ -390,7 +418,7 @@
     // ---- 8
     var wB = sumLand(addDays(m.end, -20) < m.start ? m.start : addDays(m.end, -20), m.end, ['l_leads'], 'B').l_leads / 3;
     var nArm = pe ? Math.ceil(2 * 2.8 * 2.8 * pe * (1 - pe) / Math.pow(pe * 0.2, 2)) : 0, weeks = wB ? Math.ceil(nArm / (wB * 0.2)) : 0;
-    set('h8', '9. Próximo passo: medir o efeito real do CRM');
+    set('h8', '10. Próximo passo: medir o efeito real do CRM');
     cards('k8', [['Grupo sem email', '20%', 'dos novos leads, sorteados', 1], ['Tempo de teste', weeks ? '~' + weeks + (weeks === 1 ? ' semana' : ' semanas') : 'n/d', 'para detectar +20% de compras', 1], ['Leads por grupo', fi(nArm), 'necessários em cada grupo'], ['Comparação', '14 dias', 'depois da captura']]);
     set('t8', tbl(['Ação', 'Por quê'], [['Grupo de controle de 20% nas réguas de retargeting', 'Saber quantas vendas acontecem sem o email'], ['Mensagens nas primeiras 24 a 72h', (has4 ? fp(d1) : 'n/d') + ' das compras acontecem em 24h'], ['Priorizar canais com mais compra via CRM', best ? SRC_L[best.u] + ': ' + per100(best.p) + ' em 100 leads' : 'ver bloco 5']]));
 
@@ -411,6 +439,39 @@
       ['Vendas CRM do questionário', fp(div(c.B.crm, crmT)), 'principal origem'], ['Compram em até 24h', has4 ? fp(d1) : 'n/d', 'depois da captura'], ['Clique antes da compra', fp(clickB), 'vendas CRM do questionário']]);
   }
 
+
+
+  // ---------- 4. disparos por etapa
+  function renderS() {
+    var R = D.S || [], BKS = ['0', '1-2', '3-5', '6-9', '10+'], ST = ['A', 'B', 'C'], MIN = 150;
+    if (!R.length) { set('kS', '<div class="empty">Sem dados de disparos. Clique em "Atualizar dados".</div>'); return; }
+    var a = {}; ST.forEach(function (s) { a[s] = { tot: { n14: 0, s14: 0, el: 0, m72: 0, a72: 0, cv: 0, cr: 0 } }; BKS.forEach(function (b) { a[s][b] = { el: 0, cv: 0, cr: 0 }; }); });
+    R.forEach(function (r) { var x = a[r.st]; if (!x) return; var t = x.tot; t.n14 += r.n14; t.s14 += r.s14_sum; t.el += r.el; t.m72 += r.m72_sum; t.a72 += r.a72_sum; t.cv += r.cv; t.cr += r.cr; var y = x[r.bk]; if (y) { y.el += r.el; y.cv += r.cv; y.cr += r.cr; } });
+    var avg14 = function (s) { return div(a[s].tot.s14, a[s].tot.n14); }, rate = function (s) { return div(a[s].tot.cr, a[s].tot.el); };
+    // decomposição pop-up x questionário: taxas do pop-up com o mix de disparos do questionário
+    var rA = rate('A'), rB = rate('B'), rAstar = 0;
+    BKS.forEach(function (b) { var w = div(a.B[b].el, a.B.tot.el), x = a.A[b]; rAstar += w * (x.el >= 50 ? div(x.cr, x.el) : rA); });
+    var gap = rB - rA, bySends = gap > 0 ? Math.max(0, Math.min(1, (rAstar - rA) / gap)) : null;
+    cards('kS', [['Disparos em 14 dias · pop-up', f1(avg14('A')), 'média por lead, até a compra'], ['Disparos em 14 dias · questionário', f1(avg14('B')), 'média por lead, até a compra'], ['Disparos em 14 dias · checkout', f1(avg14('C')), 'média por lead, até a compra'],
+      ['Compra CRM · pop-up x questionário', per100(rA) + ' x ' + per100(rB), 'em 100 leads (3 a 14 dias)'],
+      ['Diferença explicada pelos disparos', bySends === null ? 'n/d' : fp(bySends), 'o resto vem do perfil do lead', 1], ['Diferença explicada pelo lead', bySends === null ? 'n/d' : fp(1 - bySends), 'lead mais quente', 1]]);
+    chart('cSavg', { type: 'bar', data: { labels: ST.map(function (s) { return NAME[s]; }), datasets: [
+      { label: 'Emails entregues', backgroundColor: COL.B, data: ST.map(function (s) { return div(a[s].tot.m72, a[s].tot.el); }), stack: 's' },
+      { label: 'WhatsApp/SMS', backgroundColor: COL.crm, data: ST.map(function (s) { return div(a[s].tot.a72, a[s].tot.el); }), stack: 's' }] },
+      options: { scales: { x: { stacked: true, grid: { display: false } }, y: { stacked: true, title: { display: true, text: 'Disparos por lead' } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + f1(x.raw) + ' por lead'; } } } } } });
+    chart('cSline', { type: 'line', data: { labels: BKS.map(function (b) { return b + ' disparos'; }), datasets: ST.map(function (s) { return { label: NAME[s], borderColor: COL[s], backgroundColor: COL[s], tension: .25, spanGaps: true, pointRadius: 4,
+      data: BKS.map(function (b) { var x = a[s][b]; return x.el >= MIN ? div(x.cr, x.el) : null; }) }; }) },
+      options: { scales: { y: { min: 0, ticks: pctTicks(1) } }, plugins: { tooltip: { callbacks: { label: function (x) { var y = a[ST[x.datasetIndex]][BKS[x.dataIndex]]; return x.dataset.label + ': ' + per100(x.raw) + ' em 100 (' + fi(y.el) + ' leads)'; } } } } } });
+    chart('cSdec', { type: 'bar', plugins: [labels], data: { labels: ['Pop-up (real)', 'Pop-up com os disparos do questionário', 'Questionário (real)'], datasets: [{ backgroundColor: [COL.A, '#8FB3C6', COL.B], data: [rA, rAstar, rB] }] },
+      options: { indexAxis: 'y', layout: { padding: { right: 70 } }, scales: { x: { min: 0, ticks: pctTicks(2) }, y: { grid: { display: false } } }, plugins: { legend: { display: false }, labels: { fmt: function (v) { return per100(v) + ' em 100'; } } } } });
+    var head = ['Disparos nas 72h'].concat([].concat.apply([], ST.map(function (s) { return [NAME[s] + ' · leads', NAME[s] + ' · compra CRM']; })));
+    var rows = BKS.map(function (b) { return [b].concat([].concat.apply([], ST.map(function (s) { var x = a[s][b]; return [fi(x.el), x.el >= MIN ? per100(div(x.cr, x.el)) + ' em 100' : (x.el ? '<span class="tag">poucos dados</span>' : '')]; }))); });
+    rows.push(['Total'].concat([].concat.apply([], ST.map(function (s) { return [fi(a[s].tot.el), per100(rate(s)) + ' em 100']; }))));
+    set('tS', '<table><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows.map(function (r, i) { return '<tr' + (i === rows.length - 1 ? ' class="tot"' : '') + '>' + r.map(function (x) { return '<td>' + x + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>');
+    set('nS', 'Etapa = a mais avançada até 72h depois da primeira captura. Só entram leads com 14 dias completos e que não compraram nas primeiras 72h; a compra é contada entre 72h e 14 dias, para que os disparos sejam medidos antes do desfecho. ' +
+      'Disparos incluem emails automáticos (ex.: resultado do questionário). "Disparos em 14 dias" para de contar na compra. Linhas com menos de ' + MIN + ' leads ficam fora do gráfico. ' +
+      'A decomposição compara leads com a mesma quantidade de disparos; ela não separa quem recebe mais disparos por ter interagido mais (ex.: carrinho abandonado).');
+  }
 
   // ---------- 7. campanhas de lead (Meta)
   function renderM() {
@@ -447,15 +508,15 @@
       ['Dias da captura até a compra (média)', dd(L) + ' (' + fi(L.cvall) + ' compras)', dd(O) + ' (' + fi(O.cvall) + ' compras)', '']]));
     var dk = Object.keys(days).sort();
     chart('cMcpl', { type: 'line', data: { labels: dk.map(function (d) { return dbr(d).slice(0, 5); }), datasets: [
-      { label: 'Campanhas de lead', data: dk.map(function (d) { var x = days[d].L; return x.leads ? x.cost / x.leads : null; }), borderColor: '#34a853', backgroundColor: '#34a853', tension: .25, spanGaps: true },
-      { label: 'Demais Meta', data: dk.map(function (d) { var x = days[d].O; return x.leads ? x.cost / x.leads : null; }), borderColor: COL.crm, backgroundColor: COL.crm, tension: .25, spanGaps: true }] },
+      { label: 'Campanhas de lead', data: dk.map(function (d) { var x = days[d].L; return x.leads ? x.cost / x.leads : null; }), borderColor: '#FF8A5B', backgroundColor: '#FF8A5B', tension: .25, spanGaps: true },
+      { label: 'Demais Meta', data: dk.map(function (d) { var x = days[d].O; return x.leads ? x.cost / x.leads : null; }), borderColor: COL.B, backgroundColor: COL.B, tension: .25, spanGaps: true }] },
       options: { scales: { y: { ticks: { callback: function (v) { return brl(v); } } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + brl(x.raw); } } } } } });
     chart('cMconv', { type: 'bar', plugins: [labels], data: { labels: ['Em até 3 dias', 'Em até 7 dias'], datasets: [
-      { label: 'Campanhas de lead', backgroundColor: '#34a853', data: [r3(L), r7(L)] }, { label: 'Demais Meta', backgroundColor: COL.crm, data: [r3(O), r7(O)] }] },
+      { label: 'Campanhas de lead', backgroundColor: '#FF8A5B', data: [r3(L), r7(L)] }, { label: 'Demais Meta', backgroundColor: COL.B, data: [r3(O), r7(O)] }] },
       options: { layout: { padding: { top: 20 } }, scales: { y: { ticks: pctTicks(1) }, x: { grid: { display: false } } }, plugins: { labels: { fmt: function (v) { return per100(v); } } } } });
     var tb = function (x) { return x.cv7 ? [div(x.t1d, x.cv7), div(x.t3d - x.t1d, x.cv7), div(x.cv7 - x.t3d, x.cv7)] : [null, null, null]; };
     chart('cMtime', { type: 'bar', data: { labels: ['Campanhas de lead (' + fi(L.cv7) + ' compras)', 'Demais Meta (' + fi(O.cv7) + ' compras)'], datasets: [
-      { label: 'Até 1 dia', backgroundColor: '#188038', data: [tb(L)[0], tb(O)[0]] }, { label: '1 a 3 dias', backgroundColor: '#81c995', data: [tb(L)[1], tb(O)[1]] }, { label: '3 a 7 dias', backgroundColor: '#fdd663', data: [tb(L)[2], tb(O)[2]] }] },
+      { label: 'Até 1 dia', backgroundColor: '#19301E', data: [tb(L)[0], tb(O)[0]] }, { label: '1 a 3 dias', backgroundColor: '#6B8E5A', data: [tb(L)[1], tb(O)[1]] }, { label: '3 a 7 dias', backgroundColor: '#D4A04A', data: [tb(L)[2], tb(O)[2]] }] },
       options: { indexAxis: 'y', scales: { x: { stacked: true, max: 1, ticks: pctTicks() }, y: { stacked: true, grid: { display: false } } }, plugins: { tooltip: { callbacks: { label: function (x) { return x.dataset.label + ': ' + fp(x.raw); } } } } } });
     list.sort(function (a, b) { return (isLead(b.n) - isLead(a.n)) || (b.cost - a.cost); });
     set('tM', '<table><thead><tr><th>Campanha</th><th>Tipo</th><th>Custo c/ imposto</th><th>Leads</th><th>CPL</th><th>Compram em 3 dias</th><th>Compram em 7 dias</th><th>Dias até a compra</th></tr></thead><tbody>' +

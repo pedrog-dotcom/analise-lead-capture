@@ -8,6 +8,8 @@ const STORE_ORDERS_ = '_dados_pedidos';
 const STORE_LEADS_ = '_dados_leads';
 const STORE_CAMP_ = '_dados_campanhas_leads';
 const CAMP_COLS_ = ['dia', 'uc', 'leads', 'el3', 'cv3', 'cr3', 'el7', 'cv7', 'cr7', 'el14', 'cv14', 'cr14', 't1h', 't1d', 't3d', 'cvall', 'sdtc'];
+const STORE_SENDS_ = '_dados_disparos';
+const SENDS_COLS_ = ['dia', 'st', 'bk', 'n_all', 'n14', 's14_sum', 'el', 'm72_sum', 'a72_sum', 'cv', 'cr'];
 const SPEND_SHEET_ = 'Campanhas';   // aba com Day, Campaign Name, Amount Spent (custo sem imposto)
 const SPEND_TAX_ = 0.125;           // imposto aplicado sobre o custo diário
 // utm_campaign gravada no site -> nome da campanha na aba Campanhas (minúsculo), para casos em que a UTM difere do nome
@@ -38,6 +40,8 @@ function refreshData() {
   writeStore_(ss, STORE_LEADS_, LEAD_STORE_COLS_, leads, ['dia']);
   const camp = runQuery_(cfg, buildCampLeadsSql_(cfg, cfg.minCohort, end));
   writeStore_(ss, STORE_CAMP_, CAMP_COLS_, camp, ['dia', 'uc']);
+  const sends = runQuery_(cfg, buildSendsSql_(cfg, cfg.minCohort, end));
+  writeStore_(ss, STORE_SENDS_, SENDS_COLS_, sends, ['dia', 'st', 'bk']);
   const props = PropertiesService.getDocumentProperties();
   const meta = { lastRefresh: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm'), dataEnd: end, orders: orders.length, leadRows: leads.length };
   props.setProperty('storeMeta', JSON.stringify(meta));
@@ -99,6 +103,7 @@ function getDashboardData(params) {
   if (!orderRows.length) throw new Error('Ainda não há dados guardados. Clique em "Atualizar dados" para carregar o histórico da Nekt.');
   const out = buildDashboardPayload_(orderRows, leadRows, P, meta ? JSON.parse(meta) : {}, todayBr_());
   out.M = buildCampPayload_(readStore_(STORE_CAMP_), readSpend_(), P);
+  out.S = buildSendsPayload_(readStore_(STORE_SENDS_), P);
   return out;
 }
 
@@ -146,4 +151,11 @@ function buildDashboardPayload_(orderRows, leadRows, P, meta, today) {
     narrative: T, dailyOrders: dailyOrdersRows_(O), dailyLeads: dailyLeadsRows_(L, P.utmFromEff),
     crmPromos: CRM_PROMOS_, classDesc: CLASS_DESC_
   };
+}
+
+/** Função pura: linhas de disparos x conversão no período (dia da primeira captura). */
+function buildSendsPayload_(rows, P) {
+  return rows.filter(function (r) { return String(r.dia) >= P.start && String(r.dia) <= P.end; }).map(function (r) {
+    const o = {}; SENDS_COLS_.forEach(function (c) { o[c] = (c === 'dia' || c === 'st' || c === 'bk') ? String(r[c]) : (Number(r[c]) || 0); }); return o;
+  });
 }
