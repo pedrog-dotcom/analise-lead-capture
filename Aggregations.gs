@@ -5,10 +5,10 @@
 
 const CLASSES_ = ['A', 'B', 'C', 'D', 'X'];
 const CLASS_DESC_ = {
-  A: 'Capturado apenas por pop-up',
-  B: 'Capturado no questionário, sem captura no checkout',
-  C: 'Capturado no checkout antes da sessão de compra',
-  D: 'Sem captura prévia visível (mesma sessão ou antes do início do histórico)',
+  A: 'Pop-up em visita anterior à compra (sem questionário nem conta)',
+  B: 'Questionário em visita anterior à compra (sem conta criada)',
+  C: 'Conta criada no checkout em visita anterior à compra',
+  D: 'Email capturado só na visita da compra',
   X: 'Sem email vinculado ao pedido (não classificável)'
 };
 const TIER_KEYS_ = ['1 clique ate 24h', '2 abertura ate 24h', '3 envio ate 24h', '4 sem toque ate 24h'];
@@ -90,13 +90,13 @@ function computeOrders_(rows) {
     }
     // jornada de capturas (visitas de até 60 min)
     if (k !== 'X') {
-      const vp = num_(r.v_pop), vq = num_(r.v_quiz), vc = num_(r.v_ck), nc = vp + vq + vc, hk = nc >= 8 ? '8+' : String(nc);
-      const h = J.hist[hk] = J.hist[hk] || { n: 0, crm: 0 }; h.n++; if (crm) h.crm++;
+      const vp = num_(r.v_pop), vq = num_(r.v_quiz), vc = num_(r.v_ck), nc = Math.max(1, vp + vq + vc), hk = nc >= 8 ? '8+' : String(nc);   // todo comprador com email deixou o email ao menos 1 vez (checkout)
+      const h = J.hist[hk] = J.hist[hk] || { n: 0, crm: 0 }; h.n++; if (crm) { h.crm++; J.crmN = (J.crmN || 0) + 1; }
       J.capsSum += nc; J.capsN++; J.visSum += num_(r.n_vis);
       J.stepSum.pop += vp; J.stepSum.quiz += vq; J.stepSum.ck += vc;
       [['pop', vp], ['quiz', vq], ['ck', vc]].forEach(function (p) { const b = p[1] >= 3 ? '3+' : String(p[1]); J.stepHist[p[0]][b] = (J.stepHist[p[0]][b] || 0) + 1; });
       const lv = J.lv[r.lv_step];
-      if (lv) { lv.n++; if (crm) lv.crm++; if (num_(r.prev_pop) === 1) lv.prevPop++; if (num_(r.prev_quiz) === 1) lv.prevQuiz++; if (num_(r.n_vis) > 1) lv.prevAny++; }
+      if (lv) { lv.n++; if (crm) lv.crm++; if (num_(r.prev_pop) === 1) lv.prevPop++; if (num_(r.prev_quiz) === 1) lv.prevQuiz++; if (num_(r.prev_any) === 1) lv.prevAny++; }
     }
     if (r.rnk !== null && r.rnk !== undefined && r.rnk !== '') { const rk = num_(r.rnk) >= 5 ? '5+' : String(num_(r.rnk)); const x = J.rnk[rk] = J.rnk[rk] || { n: 0, crm: 0 }; x.n++; if (crm) x.crm++; }
     // semana

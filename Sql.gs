@@ -82,25 +82,30 @@ o AS (
     AND SAFE_CAST(x.system_checkout_at AS TIMESTAMP) < TIMESTAMP('${endExcl} 00:00:00', 'America/Sao_Paulo')
 ),
 ev AS (
-  SELECT o.order_id, c.ts, c.step, c.us, c.uc FROM o JOIN cap c ON c.email=o.email AND c.ts < o.t_sess
+  SELECT o.order_id, c.ts, c.step, c.us, c.uc FROM o JOIN cap c ON c.email=o.email AND c.ts <= o.checkout_ts
   UNION ALL
-  SELECT o.order_id, o.created_ts, 'ck', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o WHERE o.created_ts < o.t_sess
+  SELECT o.order_id, o.created_ts, 'ck', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o WHERE o.created_ts <= o.checkout_ts
+  UNION ALL
+  SELECT o.order_id, o.checkout_ts, 'zbuy', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o
 ),
 evv AS (SELECT ev.*, IF(TIMESTAMP_DIFF(ts, LAG(ts) OVER (PARTITION BY order_id ORDER BY ts, step), MINUTE) <= 60, 0, 1) AS nv FROM ev),
 evn AS (SELECT evv.*, SUM(nv) OVER (PARTITION BY order_id ORDER BY ts, step ROWS UNBOUNDED PRECEDING) AS vis FROM evv),
+bv AS (SELECT order_id, MAX(IF(step='zbuy', vis, NULL)) AS bvis FROM evn GROUP BY 1),
 jr AS (
-  SELECT order_id, MIN(ts) AS first_cap, MAX(vis) AS n_vis, COUNTIF(step='popup') AS popup_n, COUNTIF(step='quiz') AS quiz_n,
-    COUNT(DISTINCT IF(step='popup', vis, NULL)) AS v_pop, COUNT(DISTINCT IF(step='quiz', vis, NULL)) AS v_quiz, COUNTIF(step='ck') AS v_ck,
-    ARRAY_AGG(STRUCT(step AS step, us AS us, uc AS uc) ORDER BY ts, step LIMIT 1)[OFFSET(0)] AS fe
-  FROM evn GROUP BY 1
+  SELECT e.order_id, MIN(e.ts) AS first_cap, COUNT(DISTINCT e.vis) AS n_vis,
+    COUNT(DISTINCT IF(e.step='popup', e.vis, NULL)) AS v_pop, COUNT(DISTINCT IF(e.step='quiz', e.vis, NULL)) AS v_quiz, COUNTIF(e.step='ck') AS v_ck,
+    COUNTIF(e.step='popup' AND e.vis < bv.bvis) AS popup_pre, COUNTIF(e.step='quiz' AND e.vis < bv.bvis) AS quiz_pre, COUNTIF(e.step='ck' AND e.vis < bv.bvis) AS ck_pre,
+    MAX(IF(e.vis < bv.bvis, e.vis, NULL)) AS lvis,
+    ARRAY_AGG(STRUCT(e.step AS step, e.us AS us, e.uc AS uc) ORDER BY e.ts, e.step LIMIT 1)[OFFSET(0)] AS fe
+  FROM evn e JOIN bv ON bv.order_id=e.order_id WHERE e.step != 'zbuy' GROUP BY 1
 ),
 lv AS (
   SELECT e.order_id, CASE WHEN LOGICAL_OR(e.step='ck') THEN 'C' WHEN LOGICAL_OR(e.step='quiz') THEN 'B' ELSE 'A' END AS lv_step
-  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis=jr.n_vis GROUP BY 1
+  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis=jr.lvis WHERE e.step != 'zbuy' GROUP BY 1
 ),
 pv AS (
-  SELECT e.order_id, LOGICAL_OR(e.step='popup') AS prev_pop, LOGICAL_OR(e.step='quiz') AS prev_quiz
-  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis<jr.n_vis GROUP BY 1
+  SELECT e.order_id, LOGICAL_OR(e.step='popup') AS prev_pop, LOGICAL_OR(e.step='quiz') AS prev_quiz, TRUE AS prev_any
+  FROM evn e JOIN jr ON jr.order_id=e.order_id AND e.vis<jr.lvis WHERE e.step != 'zbuy' GROUP BY 1
 ),
 fo AS (
   SELECT q.customer_id, ARRAY_AGG(STRUCT(s.s_us AS us, s.s_uc AS uc) ORDER BY SAFE_CAST(q.system_checkout_at AS TIMESTAMP) LIMIT 1)[OFFSET(0)] AS f
@@ -108,8 +113,8 @@ fo AS (
   WHERE LOWER(q.brand_at_checkout)='voy' AND q.order_context IN ('acquisition','unconfirmed-acquisition') AND q.customer_id IN (SELECT customer_id FROM o) GROUP BY 1
 ),
 r AS (
-  SELECT o.*, jr.first_cap, jr.n_vis, jr.v_pop, jr.v_quiz, jr.v_ck, lv.lv_step, IFNULL(pv.prev_pop, FALSE) AS prev_pop, IFNULL(pv.prev_quiz, FALSE) AS prev_quiz,
-    CASE WHEN IFNULL(o.created_ts < o.t_sess, FALSE) THEN 'C' WHEN o.email IS NULL THEN 'X' WHEN IFNULL(jr.quiz_n,0)>0 THEN 'B' WHEN IFNULL(jr.popup_n,0)>0 THEN 'A' ELSE 'D' END AS cls,
+  SELECT o.*, jr.first_cap, jr.n_vis, jr.v_pop, jr.v_quiz, jr.v_ck, lv.lv_step, IFNULL(pv.prev_pop, FALSE) AS prev_pop, IFNULL(pv.prev_quiz, FALSE) AS prev_quiz, IFNULL(pv.prev_any, FALSE) AS prev_any,
+    CASE WHEN o.email IS NULL THEN 'X' WHEN IFNULL(jr.ck_pre,0)>0 THEN 'C' WHEN IFNULL(jr.quiz_pre,0)>0 THEN 'B' WHEN IFNULL(jr.popup_pre,0)>0 THEN 'A' ELSE 'D' END AS cls,
     IF(jr.fe.step='ck', fo.f.us, jr.fe.us) AS cap_us_raw, IF(jr.fe.step='ck', fo.f.uc, jr.fe.uc) AS cap_camp,
     TIMESTAMP_DIFF(o.checkout_ts, jr.first_cap, SECOND)/3600 AS gap_rec_h
   FROM o LEFT JOIN jr ON jr.order_id=o.order_id LEFT JOIN lv ON lv.order_id=o.order_id LEFT JOIN pv ON pv.order_id=o.order_id LEFT JOIN fo ON fo.customer_id=o.customer_id
@@ -124,7 +129,7 @@ SELECT r.order_id, FORMAT_DATE('%Y-%m-%d', DATE(r.checkout_ts, 'America/Sao_Paul
   CASE WHEN r.gap_rec_h IS NULL THEN '' WHEN r.gap_rec_h <= 1 THEN '1 ate 1h' WHEN r.gap_rec_h <= 6 THEN '2 1h a 6h' WHEN r.gap_rec_h <= 24 THEN '3 6h a 24h'
     WHEN r.gap_rec_h <= 72 THEN '4 1 a 3 dias' WHEN r.gap_rec_h <= 168 THEN '5 3 a 7 dias' WHEN r.gap_rec_h <= 336 THEN '6 7 a 14 dias' WHEN r.gap_rec_h <= 720 THEN '7 14 a 30 dias' ELSE '8 mais de 30 dias' END AS bucket,
   IFNULL(r.n_vis, 0) AS n_vis, IFNULL(r.v_pop, 0) AS v_pop, IFNULL(r.v_quiz, 0) AS v_quiz, IFNULL(r.v_ck, 0) AS v_ck, IFNULL(r.lv_step, '') AS lv_step,
-  IF(r.prev_pop, 1, 0) AS prev_pop, IF(r.prev_quiz, 1, 0) AS prev_quiz
+  IF(r.prev_pop, 1, 0) AS prev_pop, IF(r.prev_quiz, 1, 0) AS prev_quiz, IF(r.prev_any, 1, 0) AS prev_any
 FROM r
 ORDER BY r.checkout_ts`;
 }

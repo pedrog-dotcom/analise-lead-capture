@@ -153,11 +153,18 @@ function buildDashboardPayload_(orderRows, leadRows, P, meta, today) {
     nb[key] = (nb[key] || 0) + (Number(r.leads) || 0);
   });
   const NB = Object.keys(nb).map(function (k) { const p = k.split('|'); return [p[0], Number(p[1]), p[2], nb[k]]; });
+  // tempo da primeira captura até a compra por etapa da primeira captura (leads novos com 14 dias completos)
+  const LBS = {}, BKEYS = ['s_b1h', 's_b6h', 's_b1d', 's_b3d', 's_b7d', 's_b14d'];
+  leadRows.forEach(function (r) {
+    if (r.sec !== 'dia' || String(r.dia) < leadStart || String(r.dia) > P.end || String(r.nw).toLowerCase() !== 'true') return;
+    const x = LBS[r.fstep] = LBS[r.fstep] || { s_b1h: 0, s_b6h: 0, s_b1d: 0, s_b3d: 0, s_b7d: 0, s_b14d: 0 };
+    BKEYS.forEach(function (k) { x[k] += Number(r[k]) || 0; });
+  });
   return {
     meta: Object.assign({}, meta, { today: today, start: P.start, end: P.end, utmFrom: P.utmFromEff, launch: P.launch, margin: P.margin, dataStart: P.dataStart, minCohort: P.minCohort, ordersInRange: rows.length }),
     O: O, L: { src: L.src, srcStep: L.srcStep, srcAll: L.srcAll, land: L.land, buckets: L.buckets, landRows: L.landRows },
     narrative: T, dailyOrders: dailyOrdersRows_(O), dailyLeads: dailyLeadsRows_(L, P.utmFromEff),
-    crmPromos: CRM_PROMOS_, classDesc: CLASS_DESC_, NB: NB
+    crmPromos: CRM_PROMOS_, classDesc: CLASS_DESC_, NB: NB, LBS: LBS
   };
 }
 
