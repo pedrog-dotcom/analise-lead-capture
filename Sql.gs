@@ -86,18 +86,22 @@ ev AS (
   UNION ALL
   SELECT o.order_id, o.created_ts, 'ck', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o WHERE o.created_ts <= o.checkout_ts
   UNION ALL
+  SELECT o.order_id, SAFE_CAST(q.system_checkout_at AS TIMESTAMP), 'ck', CAST(NULL AS STRING), CAST(NULL AS STRING)
+  FROM o JOIN ${tbl_(cfg, 'webhook_v2_orders_lake')} q ON q.customer_id=o.customer_id AND q.order_context='unconfirmed-acquisition' AND LOWER(q.brand_at_checkout)='voy'
+    AND SAFE_CAST(q.system_checkout_at AS TIMESTAMP) < o.checkout_ts AND SAFE_CAST(q.system_checkout_at AS TIMESTAMP) >= TIMESTAMP('${cfg.dataStart}')
+  UNION ALL
   SELECT o.order_id, o.checkout_ts, 'zbuy', CAST(NULL AS STRING), CAST(NULL AS STRING) FROM o
 ),
 evv AS (SELECT ev.*, IF(TIMESTAMP_DIFF(ts, LAG(ts) OVER (PARTITION BY order_id ORDER BY ts, step), MINUTE) <= 60, 0, 1) AS nv FROM ev),
 evn AS (SELECT evv.*, SUM(nv) OVER (PARTITION BY order_id ORDER BY ts, step ROWS UNBOUNDED PRECEDING) AS vis FROM evv),
 bv AS (SELECT order_id, MAX(IF(step='zbuy', vis, NULL)) AS bvis FROM evn GROUP BY 1),
 jr AS (
-  SELECT e.order_id, MIN(e.ts) AS first_cap, COUNT(DISTINCT e.vis) AS n_vis,
-    COUNT(DISTINCT IF(e.step='popup', e.vis, NULL)) AS v_pop, COUNT(DISTINCT IF(e.step='quiz', e.vis, NULL)) AS v_quiz, COUNTIF(e.step='ck') AS v_ck,
+  SELECT e.order_id, MIN(IF(e.step != 'zbuy', e.ts, NULL)) AS first_cap, COUNT(DISTINCT e.vis) AS n_vis,
+    COUNT(DISTINCT IF(e.step='popup', e.vis, NULL)) AS v_pop, COUNT(DISTINCT IF(e.step='quiz', e.vis, NULL)) AS v_quiz, COUNT(DISTINCT IF(e.step IN ('ck','zbuy'), e.vis, NULL)) AS v_ck,
     COUNTIF(e.step='popup' AND e.vis < bv.bvis) AS popup_pre, COUNTIF(e.step='quiz' AND e.vis < bv.bvis) AS quiz_pre, COUNTIF(e.step='ck' AND e.vis < bv.bvis) AS ck_pre,
-    MAX(IF(e.vis < bv.bvis, e.vis, NULL)) AS lvis,
-    ARRAY_AGG(STRUCT(e.step AS step, e.us AS us, e.uc AS uc) ORDER BY e.ts, e.step LIMIT 1)[OFFSET(0)] AS fe
-  FROM evn e JOIN bv ON bv.order_id=e.order_id WHERE e.step != 'zbuy' GROUP BY 1
+    MAX(IF(e.step != 'zbuy' AND e.vis < bv.bvis, e.vis, NULL)) AS lvis,
+    ARRAY_AGG(IF(e.step != 'zbuy', STRUCT(e.step AS step, e.us AS us, e.uc AS uc), NULL) IGNORE NULLS ORDER BY e.ts, e.step LIMIT 1)[SAFE_OFFSET(0)] AS fe
+  FROM evn e JOIN bv ON bv.order_id=e.order_id GROUP BY 1
 ),
 lv AS (
   SELECT e.order_id, CASE WHEN LOGICAL_OR(e.step='ck') THEN 'C' WHEN LOGICAL_OR(e.step='quiz') THEN 'B' ELSE 'A' END AS lv_step
@@ -292,7 +296,7 @@ msg AS (
   WHERE type IN ('delivered_email','sent_action') AND timestamp >= UNIX_SECONDS(TIMESTAMP('${start}')) AND customer_identifiers.email IS NOT NULL
 ),
 base AS (
-  SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c,
+  SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c, ck.ck_ts, l.fq,
     CASE WHEN ck.ck_ts <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'C' WHEN l.fq <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'B' ELSE 'A' END AS st,
     l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
   FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email LEFT JOIN fa ON fa.email=l.email CROSS JOIN cutoff
@@ -301,12 +305,14 @@ base AS (
 cnt AS (
   SELECT b.email,
     COUNTIF(m.ts > b.first_ts AND m.ts <= b.lm AND m.is_mail) AS m72, COUNTIF(m.ts > b.first_ts AND m.ts <= b.lm AND NOT m.is_mail) AS a72,
-    COUNTIF(m.ts > b.first_ts AND m.ts <= LEAST(TIMESTAMP_ADD(b.first_ts, INTERVAL 14 DAY), IFNULL(b.c.cts, TIMESTAMP('2100-01-01')))) AS s14
+    COUNTIF(m.ts > b.first_ts AND m.ts <= LEAST(TIMESTAMP_ADD(b.first_ts, INTERVAL 14 DAY), IFNULL(b.c.cts, TIMESTAMP('2100-01-01')))) AS s14,
+    COUNTIF(m.is_mail AND m.ts > b.first_ts AND m.ts <= b.c.cts) AS mb, COUNTIF(NOT m.is_mail AND m.ts > b.first_ts AND m.ts <= b.c.cts) AS ab
   FROM base b JOIN msg m ON m.email=b.email AND m.ts > b.first_ts AND m.ts <= TIMESTAMP_ADD(b.first_ts, INTERVAL 14 DAY)
   GROUP BY b.email
 ),
 k AS (
-  SELECT b.*, IFNULL(n.m72,0) AS m72, IFNULL(n.a72,0) AS a72, IFNULL(n.s14,0) AS s14, IFNULL(n.m72,0)+IFNULL(n.a72,0) AS t72,
+  SELECT b.*, IFNULL(n.m72,0) AS m72, IFNULL(n.a72,0) AS a72, IFNULL(n.s14,0) AS s14, IFNULL(n.m72,0)+IFNULL(n.a72,0) AS t72, IFNULL(n.mb,0) AS mb, IFNULL(n.ab,0) AS ab,
+    CASE WHEN b.ck_ts < TIMESTAMP_SUB(b.c.cts, INTERVAL 60 MINUTE) THEN 'C' WHEN b.fq <= b.c.cts THEN 'B' ELSE 'A' END AS bst,
     (b.c.cts IS NULL OR b.c.cts > b.lm) AS in_l, DATE(b.first_ts,'America/Sao_Paulo') AS d
   FROM base b LEFT JOIN cnt n ON n.email=b.email
 )
@@ -316,5 +322,11 @@ SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, st,
   COUNTIF(e14 AND in_l) AS el, SUM(IF(e14 AND in_l, s14, 0)) AS s14_el, SUM(IF(e14 AND in_l, m72, 0)) AS m72_sum, SUM(IF(e14 AND in_l, a72, 0)) AS a72_sum,
   COUNTIF(e14 AND in_l AND c.cts IS NOT NULL AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cv,
   COUNTIF(e14 AND in_l AND c.is_crm AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)) AS cr
-FROM k GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`;
+FROM k GROUP BY 1, 2, 3
+UNION ALL
+SELECT FORMAT_DATE('%Y-%m-%d', d) AS dia, bst AS st, 'buy' AS bk,
+  COUNT(*) AS n_all, 0 AS n14, 0 AS s14_sum, COUNT(*) AS el, SUM(mb + ab) AS s14_el, SUM(mb) AS m72_sum, SUM(ab) AS a72_sum, COUNT(*) AS cv, COUNTIF(c.is_crm) AS cr
+FROM k WHERE e14 AND c.cts IS NOT NULL AND c.cts <= TIMESTAMP_ADD(first_ts, INTERVAL 14 DAY)
+GROUP BY 1, 2, 3
+ORDER BY 1, 2, 3`;
 }
