@@ -74,7 +74,7 @@ o AS (
     COALESCE(cu0.email, ai.email) AS email, s.sess_ts, s.rnk, s.s_us, cl.created_ts,
     COALESCE(s.sess_ts, TIMESTAMP_SUB(SAFE_CAST(x.system_checkout_at AS TIMESTAMP), INTERVAL 10 MINUTE)) AS t_sess
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
-  JOIN promo p ON p.order_id=x.order_id
+  LEFT JOIN promo p ON p.order_id=x.order_id
   LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio LEFT JOIN sess s ON s.order_id=x.order_id LEFT JOIN cl ON cl.customer_id=x.customer_id
   WHERE LOWER(x.brand_at_checkout)='voy' AND x.order_context='acquisition' AND x.is_confirmed AND x.order_taxonomy_business_category='weight_loss'
     AND INITCAP(REPLACE(x.country,'_',' '))='Brazil'
