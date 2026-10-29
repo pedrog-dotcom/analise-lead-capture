@@ -49,6 +49,8 @@ function computeOrders_(rows) {
     out.time[k] = { n: 0, gaps: [] }; out.timeCrm[k] = { n: 0, gaps: [] };
     BUCKET_KEYS_.forEach(function (b) { out.time[k][b] = 0; out.timeCrm[k][b] = 0; });
   });
+  const TF = out.tfirst = { n: 0, same: 0, hSum: 0, hN: 0, old: 0, gaps: [], gapsPrev: [], all: {}, crm: {}, nCrm: 0 };
+  BUCKET_KEYS_.forEach(function (b) { TF.all[b] = 0; TF.crm[b] = 0; });
   const J = out.journey = { hist: {}, capsSum: 0, capsN: 0, stepSum: { pop: 0, quiz: 0, ck: 0 }, stepHist: { pop: {}, quiz: {}, ck: {} }, lv: {}, rnk: {}, visSum: 0 };
   ['A', 'B', 'C'].forEach(function (s) { J.lv[s] = { n: 0, crm: 0, prevPop: 0, prevQuiz: 0, prevAny: 0 }; });
   const campCount = {}, campRows = {}, campAttrCount = {}, promoRows = {}, sessCount = {};
@@ -88,6 +90,13 @@ function computeOrders_(rows) {
       const ss = r.s_us ? r.s_us : '(sem sessão ou direto)';
       sessCount[ss] = (sessCount[ss] || 0) + 1;
     }
+    // tempo da primeira captura até a compra (compradores do período)
+    if (k !== 'X' && r.gap_rec_h !== null && r.gap_rec_h !== undefined && r.gap_rec_h !== '') {
+      const gh = Math.max(0, Number(r.gap_rec_h)); TF.n++; if (k === 'D') TF.same++;
+      if (r.bucket) { TF.all[r.bucket]++; if (crm) TF.crm[r.bucket]++; }
+      if (crm) TF.nCrm++;
+      if (num_(r.first_old) === 1) TF.old++; else { TF.hSum += gh; TF.hN++; TF.gaps.push(gh); if (k !== 'D') TF.gapsPrev.push(gh); }
+    }
     // jornada de capturas (visitas de até 60 min)
     if (k !== 'X') {
       const vp = num_(r.v_pop), vq = num_(r.v_quiz), vc = num_(r.v_ck), nc = Math.max(1, vp + vq + vc), hk = nc >= 8 ? '8+' : String(nc);   // todo comprador com email deixou o email ao menos 1 vez (checkout)
@@ -113,6 +122,7 @@ function computeOrders_(rows) {
   out.campAttrOrder = topN_(campAttrCount, 15); out.campAttrCount = campAttrCount;
   out.sessionSrc = sessCount; out.sessionOrder = topN_(sessCount, 8);
   // quantis
+  TF.med = quantile_(TF.gaps.slice().sort(function (x, y) { return x - y; }), 0.5); TF.medPrev = quantile_(TF.gapsPrev.slice().sort(function (x, y) { return x - y; }), 0.5); delete TF.gaps; delete TF.gapsPrev;
   CLASSES_.forEach(function (k) {
     ['time', 'timeCrm'].forEach(function (key) {
       const g = out[key][k].gaps.slice().sort(function (a, b) { return a - b; });

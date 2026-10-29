@@ -129,7 +129,8 @@ SELECT r.order_id, FORMAT_DATE('%Y-%m-%d', DATE(r.checkout_ts, 'America/Sao_Paul
   CASE WHEN r.gap_rec_h IS NULL THEN '' WHEN r.gap_rec_h <= 1 THEN '1 ate 1h' WHEN r.gap_rec_h <= 6 THEN '2 1h a 6h' WHEN r.gap_rec_h <= 24 THEN '3 6h a 24h'
     WHEN r.gap_rec_h <= 72 THEN '4 1 a 3 dias' WHEN r.gap_rec_h <= 168 THEN '5 3 a 7 dias' WHEN r.gap_rec_h <= 336 THEN '6 7 a 14 dias' WHEN r.gap_rec_h <= 720 THEN '7 14 a 30 dias' ELSE '8 mais de 30 dias' END AS bucket,
   IFNULL(r.n_vis, 0) AS n_vis, IFNULL(r.v_pop, 0) AS v_pop, IFNULL(r.v_quiz, 0) AS v_quiz, IFNULL(r.v_ck, 0) AS v_ck, IFNULL(r.lv_step, '') AS lv_step,
-  IF(r.prev_pop, 1, 0) AS prev_pop, IF(r.prev_quiz, 1, 0) AS prev_quiz, IF(r.prev_any, 1, 0) AS prev_any
+  IF(r.prev_pop, 1, 0) AS prev_pop, IF(r.prev_quiz, 1, 0) AS prev_quiz, IF(r.prev_any, 1, 0) AS prev_any,
+  IF(r.first_cap = r.created_ts AND r.created_ts < TIMESTAMP('${cfg.dataStart}'), 1, 0) AS first_old
 FROM r
 ORDER BY r.checkout_ts`;
 }
