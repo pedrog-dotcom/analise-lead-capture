@@ -280,7 +280,7 @@ ordall AS (
 ),
 cutoff AS (SELECT TIMESTAMP(CURRENT_DATE('America/Sao_Paulo'), 'America/Sao_Paulo') AS cut),
 leads AS (
-  SELECT email, MIN(ts) AS first_ts, MIN(IF(step='quiz', ts, NULL)) AS fq
+  SELECT email, MIN(ts) AS first_ts, MIN(IF(step='quiz', ts, NULL)) AS fq, ARRAY_AGG(step ORDER BY ts LIMIT 1)[OFFSET(0)] AS fstep
   FROM cap WHERE email LIKE '%@%' GROUP BY email
   HAVING MIN(ts) >= TIMESTAMP('${start} 00:00:00', 'America/Sao_Paulo') AND MIN(ts) < TIMESTAMP('${endExcl} 00:00:00', 'America/Sao_Paulo')
 ),
@@ -296,7 +296,7 @@ msg AS (
   WHERE type IN ('delivered_email','sent_action') AND timestamp >= UNIX_SECONDS(TIMESTAMP('${start}')) AND customer_identifiers.email IS NOT NULL
 ),
 base AS (
-  SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c, ck.ck_ts, l.fq,
+  SELECT l.email, l.first_ts, TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) AS lm, cv.c, ck.ck_ts, l.fq, l.fstep,
     CASE WHEN ck.ck_ts <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'C' WHEN l.fq <= TIMESTAMP_ADD(l.first_ts, INTERVAL 72 HOUR) THEN 'B' ELSE 'A' END AS st,
     l.first_ts <= TIMESTAMP_SUB(cutoff.cut, INTERVAL 14 DAY) AS e14
   FROM leads l LEFT JOIN ck ON ck.email=l.email LEFT JOIN cv ON cv.email=l.email LEFT JOIN pb ON pb.email=l.email LEFT JOIN fa ON fa.email=l.email CROSS JOIN cutoff
@@ -312,7 +312,7 @@ cnt AS (
 ),
 k AS (
   SELECT b.*, IFNULL(n.m72,0) AS m72, IFNULL(n.a72,0) AS a72, IFNULL(n.s14,0) AS s14, IFNULL(n.m72,0)+IFNULL(n.a72,0) AS t72, IFNULL(n.mb,0) AS mb, IFNULL(n.ab,0) AS ab,
-    CASE WHEN b.ck_ts < TIMESTAMP_SUB(b.c.cts, INTERVAL 60 MINUTE) THEN 'C' WHEN b.fq <= b.c.cts THEN 'B' ELSE 'A' END AS bst,
+    CASE WHEN b.ck_ts < TIMESTAMP_SUB(b.c.cts, INTERVAL 60 MINUTE) THEN 'C' WHEN b.fstep = 'popup' THEN 'A' ELSE 'B' END AS bst,
     (b.c.cts IS NULL OR b.c.cts > b.lm) AS in_l, DATE(b.first_ts,'America/Sao_Paulo') AS d
   FROM base b LEFT JOIN cnt n ON n.email=b.email
 )
