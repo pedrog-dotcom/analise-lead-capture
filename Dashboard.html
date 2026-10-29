@@ -447,7 +447,7 @@
     // ---- glossário
     set('gloss', tbl(['Termo', 'Significado'], [
       ['Aquisição', 'Primeiro pedido confirmado de um cliente novo da Voy (WL BR), pela data do checkout no fuso de Brasília.'],
-      ['Venda com cupom CRM', 'Aquisição feita com um dos cupons distribuídos pelo CRM: ' + D.crmPromos.join(', ') + '.'],
+      ['Venda com cupom CRM', 'Aquisição com cupom marcado como CRM na tabela crm_atribuicao_cupons (is_cupom_crm), dentro das promoções de CRM: ' + D.crmPromos.join(', ') + '. Cupons da mesma promoção que não são de CRM (ex.: VOYSECRETO) ficam de fora, igual ao pacing.'],
       ['Lead novo', 'Email capturado no site (pop-up ou questionário) sem nenhum registro anterior no Customer.io (histórico desde 10/07/2026). Quem já tinha registro conta como "já na base".'],
       ['Primeira captura', 'Primeiro evento de captura do email; todos os tempos e fontes de leads partem dela.'],
       ['Visita', 'Sequência de capturas (pop-up, questionário, criação de conta) com menos de 60 minutos entre uma e outra.'],
@@ -594,7 +594,7 @@
 
   // ---------- "i": como foi medido
   var HOW = {
-    cDaily: 'Aquisições confirmadas (primeiro pedido WL BR) por dia do checkout, fuso de Brasília. "Com cupom CRM" = promotion_code na lista de cupons de CRM. Linha = aquisições com cupom CRM ÷ aquisições do dia.',
+    cDaily: 'Aquisições confirmadas (primeiro pedido WL BR) por dia do checkout, fuso de Brasília. "Com cupom CRM" = cupom marcado como CRM (is_cupom_crm) dentro das promoções de CRM, mesma regra do pacing. Linha = aquisições com cupom CRM ÷ aquisições do dia.',
     cNew: 'Emails capturados pela primeira vez no site (pop-up ou questionário) por dia. Novo = sem nenhum registro no Customer.io antes da captura. "Já na base" = primeira captura no site de um email que já tinha registro (ex.: recebeu emails antes).',
     cNewStep: 'Leads novos do período pela etapa da primeira captura.',
     cSrcVol: 'Leads novos capturados desde a data de UTM confiável, pelo utm_source da primeira captura.',

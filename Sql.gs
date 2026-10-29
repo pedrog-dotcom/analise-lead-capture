@@ -65,12 +65,12 @@ function buildOrdersSql_(cfg, start, end) {
   assertDate_(start, 'início'); assertDate_(end, 'fim'); assertDate_(cfg.dataStart, 'dataStart');
   const endExcl = addDays_(end, 1);
   return `WITH${sharedCtes_(cfg)},
-promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS promotion_code, ANY_VALUE(emails_entregues_30d) AS ed, ANY_VALUE(emails_abertos_30d) AS ea, ANY_VALUE(emails_clicados_30d) AS ec, ANY_VALUE(abertura_campanha) AS ab_c, ANY_VALUE(clique_campanha) AS cl_c, ANY_VALUE(envio_campanha) AS en_c, ANY_VALUE(abertura_horas_antes) AS ab_h, ANY_VALUE(clique_horas_antes) AS cl_h, ANY_VALUE(envio_horas_antes) AS en_h FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS promotion_code, LOGICAL_OR(is_cupom_crm AND promotion_code IN (${crmList_()})) AS crm_flag, ANY_VALUE(emails_entregues_30d) AS ed, ANY_VALUE(emails_abertos_30d) AS ea, ANY_VALUE(emails_clicados_30d) AS ec, ANY_VALUE(abertura_campanha) AS ab_c, ANY_VALUE(clique_campanha) AS cl_c, ANY_VALUE(envio_campanha) AS en_c, ANY_VALUE(abertura_horas_antes) AS ab_h, ANY_VALUE(clique_horas_antes) AS cl_h, ANY_VALUE(envio_horas_antes) AS en_h FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
 o AS (
   SELECT x.order_id, x.customer_id, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS checkout_ts, SAFE_CAST(x.payment_completed_at AS TIMESTAMP) AS paid_ts,
     x.gross_revenue_local AS gross, x.net_revenue_local AS net, x.discount_local AS disc,
     p.promotion_code, p.ed, p.ea, p.ec, p.ab_c, p.cl_c, p.en_c, p.ab_h, p.cl_h, p.en_h,
-    p.promotion_code IN (${crmList_()}) AS is_crm,
+    IFNULL(p.crm_flag, FALSE) AS is_crm,
     COALESCE(cu0.email, ai.email) AS email, s.sess_ts, s.rnk, s.s_us, cl.created_ts,
     COALESCE(s.sess_ts, TIMESTAMP_SUB(SAFE_CAST(x.system_checkout_at AS TIMESTAMP), INTERVAL 10 MINUTE)) AS t_sess
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
@@ -149,10 +149,10 @@ function buildLeadsSql_(cfg, start, end, utmFrom) {
   const endExcl = addDays_(end, 1);
   const minCohort = assertDate_(cfg.minCohort, 'minCohort');
   return `WITH${sharedCtes_(cfg)},
-promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc, LOGICAL_OR(is_cupom_crm AND promotion_code IN (${crmList_()})) AS crm_flag FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
 ordall AS (
   SELECT x.order_id, x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, x.net_revenue_local AS net, x.discount_local AS disc,
-    p.pc IN (${crmList_()}) AS is_crm,
+    IFNULL(p.crm_flag, FALSE) AS is_crm,
     COALESCE(cu0.email, ai.email) AS email, cl.created_ts
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
   LEFT JOIN promo p ON p.order_id=x.order_id LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio
@@ -221,9 +221,9 @@ function buildCampLeadsSql_(cfg, start, end) {
   assertDate_(start, 'início'); assertDate_(end, 'fim');
   const endExcl = addDays_(end, 1);
   return `WITH${sharedCtes_(cfg)},
-promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc, LOGICAL_OR(is_cupom_crm AND promotion_code IN (${crmList_()})) AS crm_flag FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
 ordall AS (
-  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, p.pc IN (${crmList_()}) AS is_crm, COALESCE(cu0.email, ai.email) AS email
+  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, IFNULL(p.crm_flag, FALSE) AS is_crm, COALESCE(cu0.email, ai.email) AS email
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
   LEFT JOIN promo p ON p.order_id=x.order_id LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio
   WHERE LOWER(x.brand_at_checkout)='voy' AND x.order_taxonomy_business_category='weight_loss' AND INITCAP(REPLACE(x.country,'_',' '))='Brazil'
@@ -268,9 +268,9 @@ function buildSendsSql_(cfg, start, end) {
   assertDate_(start, 'início'); assertDate_(end, 'fim');
   const endExcl = addDays_(end, 1);
   return `WITH${sharedCtes_(cfg)},
-promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
+promo AS (SELECT order_id, ANY_VALUE(promotion_code) AS pc, LOGICAL_OR(is_cupom_crm AND promotion_code IN (${crmList_()})) AS crm_flag FROM ${tbl_(cfg, 'crm_atribuicao_cupons')} WHERE brand='Voy' GROUP BY order_id),
 ordall AS (
-  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, p.pc IN (${crmList_()}) AS is_crm,
+  SELECT x.order_context, x.is_confirmed, SAFE_CAST(x.system_checkout_at AS TIMESTAMP) AS cts, IFNULL(p.crm_flag, FALSE) AS is_crm,
     COALESCE(cu0.email, ai.email) AS email, cl.created_ts
   FROM ${tbl_(cfg, 'webhook_v2_orders_lake')} x
   LEFT JOIN promo p ON p.order_id=x.order_id LEFT JOIN tch t ON t.order_id=x.order_id LEFT JOIN cu0 ON cu0.id=t.cio LEFT JOIN ai ON ai.id=t.cio
